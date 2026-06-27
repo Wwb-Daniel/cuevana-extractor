@@ -33,10 +33,10 @@ jobs:
       - name: Instalar dependencias de Node
         run: npm ci || npm install
 
-      - name: Instalar dependencias del sistema y Chrome
+      - name: Instalar dependencias del sistema (Xvfb)
         run: |
           sudo apt-get update
-          sudo apt-get install -y wget curl xvfb libxss1 libappindicator1 libgconf-2-4 libatk-bridge2.0-0 libgtk-3-0
+          sudo apt-get install -y xvfb
 
       - name: Instalar yt-dlp
         run: |
