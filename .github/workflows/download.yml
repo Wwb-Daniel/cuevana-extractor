@@ -1,0 +1,76 @@
+name: Descarga de Película y Subida a GitHub Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      movie_url:
+        description: 'URL de la película de Cuevana'
+        required: true
+        type: string
+      movie_title:
+        description: 'Título de la película (ej. Matrix, Inception)'
+        required: false
+        type: string
+        default: 'pelicula'
+
+permissions:
+  contents: write
+
+jobs:
+  download-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependencias de Node
+        run: npm ci || npm install
+
+      - name: Instalar dependencias del sistema y Chrome
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget curl xvfb libxss1 libappindicator1 libgconf-2-4 libatk-bridge2.0-0 libgtk-3-0
+
+      - name: Instalar yt-dlp
+        run: |
+          sudo wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+          yt-dlp --version
+
+      - name: Iniciar servidor virtual de pantalla (Xvfb) y correr Extractor
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Formatear el nombre de archivo de salida reemplazando caracteres especiales por guiones bajos
+          TITLE_CLEAN=$(echo "${{ github.event.inputs.movie_title }}" | sed 's/[^a-zA-Z0-9]/_/g' | tr -s '_')
+          FILENAME="${TITLE_CLEAN}.mp4"
+          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
+          
+          # Iniciar Xvfb para que Chrome pueda abrirse con GUI virtual si lo requiere Puppeteer
+          xvfb-run --server-args="-screen 0 1280x1024x24" node cuevana_extractor.js "${{ github.event.inputs.movie_url }}" "$FILENAME"
+
+      - name: Crear Release y Subir Película
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Crear una etiqueta única basada en la fecha y hora
+          TAG_NAME="download-$(date +'%Y%m%d-%H%M%S')"
+          RELEASE_TITLE="${{ github.event.inputs.movie_title }} ($(date +'%Y-%m-%d %H:%M'))"
+          
+          echo "Creando Release $TAG_NAME con título '$RELEASE_TITLE'..."
+          gh release create "$TAG_NAME" \
+            --title "$RELEASE_TITLE" \
+            --notes "Descarga automatizada de Cuevana realizada el $(date +'%Y-%m-%d %H:%M:%S')."
+          
+          echo "Subiendo archivo(s) .mp4 al release..."
+          # Subir todos los archivos .mp4 que se encuentren en la raíz del proyecto
+          gh release upload "$TAG_NAME" *.mp4
+          
+          echo "¡Completado! Puedes descargar tu película en la pestaña 'Releases' de tu repositorio."
