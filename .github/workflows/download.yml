@@ -66,6 +66,7 @@ jobs:
           fi
 
       - name: Subir Película a InsForge Storage
+        continue-on-error: true
         env:
           INSFORGE_API_KEY: 'ik_eb92792fde1c104d7468e4a5a1dbf885'
           INSFORGE_BASE_URL: 'https://umbu9s7y.us-east.insforge.app'

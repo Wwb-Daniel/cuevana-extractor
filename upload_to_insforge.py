@@ -17,6 +17,13 @@ def upload():
         print(f"El archivo no existe: {filename}")
         sys.exit(1)
         
+    # Verificar límite de tamaño de InsForge (50 MB)
+    file_size = os.path.getsize(filename)
+    if file_size > 50 * 1024 * 1024:
+        print(f"⚠️ El archivo '{filename}' pesa {file_size / 1024 / 1024:.2f} MB, lo cual supera el límite de subida de InsForge (50 MB).")
+        print("ℹ️ Este archivo se subirá únicamente a GitHub Releases debido al límite de tamaño de InsForge.")
+        sys.exit(0)
+        
     base_url = os.environ.get("INSFORGE_BASE_URL", "https://umbu9s7y.us-east.insforge.app")
     api_key = os.environ.get("INSFORGE_API_KEY", "ik_eb92792fde1c104d7468e4a5a1dbf885")
     
