@@ -48,13 +48,22 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Formatear el nombre de archivo de salida reemplazando caracteres especiales por guiones bajos
+          # Formatear el nombre de archivo de salida de base
           TITLE_CLEAN=$(echo "${{ github.event.inputs.movie_title }}" | sed 's/[^a-zA-Z0-9]/_/g' | tr -s '_')
           FILENAME="${TITLE_CLEAN}.mp4"
-          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
           
           # Iniciar Xvfb para que Chrome pueda abrirse con GUI virtual si lo requiere Puppeteer
           xvfb-run --server-args="-screen 0 1280x1024x24" node cuevana_extractor.js "${{ github.event.inputs.movie_url }}" "$FILENAME"
+
+          # Detectar el archivo real final (.mp4) creado en el directorio
+          ACTUAL_FILENAME=$(ls *.mp4 | head -n 1)
+          if [ -n "$ACTUAL_FILENAME" ]; then
+            echo "FILENAME=$ACTUAL_FILENAME" >> $GITHUB_ENV
+            echo "Real filename detected: $ACTUAL_FILENAME"
+          else
+            echo "FILENAME=$FILENAME" >> $GITHUB_ENV
+            echo "No mp4 file found, defaulting to: $FILENAME"
+          fi
 
       - name: Subir Película a InsForge Storage
         env:
