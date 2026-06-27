@@ -188,6 +188,7 @@ function downloadWithYtdl(stream, playerUrl, filename) {
         const args = [
             '--no-update',
             '--referer', referer,
+            '--remux-video', 'mp4',
             '-o', filename,
             stream
         ];
