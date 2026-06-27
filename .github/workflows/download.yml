@@ -33,10 +33,10 @@ jobs:
       - name: Instalar dependencias de Node
         run: npm ci || npm install
 
-      - name: Instalar dependencias del sistema (Xvfb)
+      - name: Instalar dependencias del sistema (Xvfb, ffmpeg)
         run: |
           sudo apt-get update
-          sudo apt-get install -y xvfb
+          sudo apt-get install -y xvfb ffmpeg
 
       - name: Instalar yt-dlp
         run: |
