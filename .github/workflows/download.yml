@@ -65,13 +65,12 @@ jobs:
             echo "No mp4 file found, defaulting to: $FILENAME"
           fi
 
-      - name: Subir Película a InsForge Storage
+      - name: Subir Película a Supabase Storage
         continue-on-error: true
         env:
-          INSFORGE_API_KEY: 'ik_eb92792fde1c104d7468e4a5a1dbf885'
-          INSFORGE_BASE_URL: 'https://umbu9s7y.us-east.insforge.app'
+          SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkdmRuam1xZ2NwcndudGFidmlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NTgwNjIsImV4cCI6MjA5ODEzNDA2Mn0.8qcpYfWH9bwDrEQSKzbYvKOqlYpBQmqNWgykTQBXO60'
         run: |
-          python upload_to_insforge.py "$FILENAME"
+          python upload_to_supabase.py "$FILENAME"
 
       - name: Crear Release y Subir Película (Backup en GitHub)
         env:
