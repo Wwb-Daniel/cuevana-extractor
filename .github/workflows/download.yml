@@ -44,6 +44,11 @@ jobs:
           sudo chmod a+rx /usr/local/bin/yt-dlp
           yt-dlp --version
 
+      - name: Instalar dependencias de Python (boto3)
+        run: |
+          python -m pip install --upgrade pip
+          pip install boto3
+
       - name: Iniciar servidor virtual de pantalla (Xvfb) y correr Extractor
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -65,12 +70,13 @@ jobs:
             echo "No mp4 file found, defaulting to: $FILENAME"
           fi
 
-      - name: Subir Película a Supabase Storage
+      - name: Subir Película a Cloudflare R2 Storage
         continue-on-error: true
         env:
-          SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkdmRuam1xZ2NwcndudGFidmlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NTgwNjIsImV4cCI6MjA5ODEzNDA2Mn0.8qcpYfWH9bwDrEQSKzbYvKOqlYpBQmqNWgykTQBXO60'
+          R2_ACCESS_KEY_ID: 'fe39bf665d06666923f48b5763240c4f'
+          R2_SECRET_ACCESS_KEY: '8a1e2ff8f0305ce224ef7e8cbb82f4bda97103ffd6a35d99ec7f2ad8853cf7ba'
         run: |
-          python upload_to_supabase.py "$FILENAME"
+          python upload_to_r2.py "$FILENAME"
 
       - name: Crear Release y Subir Película (Backup en GitHub)
         env:
