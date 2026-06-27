@@ -56,7 +56,14 @@ jobs:
           # Iniciar Xvfb para que Chrome pueda abrirse con GUI virtual si lo requiere Puppeteer
           xvfb-run --server-args="-screen 0 1280x1024x24" node cuevana_extractor.js "${{ github.event.inputs.movie_url }}" "$FILENAME"
 
-      - name: Crear Release y Subir Película
+      - name: Subir Película a InsForge Storage
+        env:
+          INSFORGE_API_KEY: 'ik_eb92792fde1c104d7468e4a5a1dbf885'
+          INSFORGE_BASE_URL: 'https://umbu9s7y.us-east.insforge.app'
+        run: |
+          node upload_to_insforge.js "$FILENAME"
+
+      - name: Crear Release y Subir Película (Backup en GitHub)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
