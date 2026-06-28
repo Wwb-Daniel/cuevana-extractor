@@ -35,8 +35,15 @@ def upload():
     object_name = os.path.basename(filename)
     print(f"📤 Subiendo '{filename}' a Cloudflare R2 (bucket: '{bucket_name}') como '{object_name}'...")
     
+    # Especificar ContentType para compatibilidad de reproducción web/móvil
+    extra_args = {}
+    if filename.lower().endswith('.mp4'):
+        extra_args['ContentType'] = 'video/mp4'
+    elif filename.lower().endswith('.m3u8'):
+        extra_args['ContentType'] = 'application/x-mpegURL'
+        
     try:
-        s3.upload_file(filename, bucket_name, object_name)
+        s3.upload_file(filename, bucket_name, object_name, ExtraArgs=extra_args)
         print("\n=========================================")
         print("🎉 ¡SUBIDA A CLOUDFLARE R2 COMPLETADA CON ÉXITO!")
         print("=========================================")
