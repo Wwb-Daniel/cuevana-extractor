@@ -147,7 +147,7 @@ function downloadWithYtdl(stream, playerUrl, filename) {
             if (code === 0) {
                 console.log(`\n🔄 Remuxando stream MPEG-TS a MP4 limpio con ffmpeg...`);
                 try {
-                    execSync(`ffmpeg -y -i "${tempTs}" -c copy "${filename}"`, { stdio: 'inherit' });
+                    execSync(`ffmpeg -y -f mpegts -i "${tempTs}" -c copy -movflags +faststart "${filename}"`, { stdio: 'inherit' });
                     console.log(`\n✅ Conversión completada exitosamente: ${filename}`);
                     if (fs.existsSync(tempTs)) {
                         fs.unlinkSync(tempTs);
