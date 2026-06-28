@@ -1,6 +1,6 @@
 const puppeteer = require('puppeteer-core');
 const https = require('https');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
 const os = require('os');
 const fs = require('fs');
 
@@ -181,15 +181,15 @@ function downloadWithYtdl(stream, playerUrl, filename) {
         }
         
         const referer = playerUrl.split('/e/')[0] + '/';
+        const tempTs = 'temp_download.ts';
         console.log(`\n📥 Iniciando descarga automática con yt-dlp...`);
-        console.log(`Destino: ${filename}`);
+        console.log(`Destino temporal TS: ${tempTs}`);
         console.log(`Referer: ${referer}`);
         
         const args = [
             '--no-update',
             '--referer', referer,
-            '--remux-video', 'mp4',
-            '-o', filename,
+            '-o', tempTs,
             stream
         ];
         
@@ -198,10 +198,26 @@ function downloadWithYtdl(stream, playerUrl, filename) {
         
         child.on('close', (code) => {
             if (code === 0) {
-                console.log(`\n✅ Descarga completada exitosamente: ${filename}`);
-                resolve(true);
+                console.log(`\n🔄 Remuxando stream MPEG-TS a MP4 limpio con ffmpeg...`);
+                try {
+                    execSync(`ffmpeg -y -i "${tempTs}" -c copy "${filename}"`, { stdio: 'inherit' });
+                    console.log(`\n✅ Conversión completada exitosamente: ${filename}`);
+                    if (fs.existsSync(tempTs)) {
+                        fs.unlinkSync(tempTs);
+                    }
+                    resolve(true);
+                } catch (err) {
+                    console.error(`\n❌ Error al remuxar con ffmpeg:`, err.message);
+                    if (fs.existsSync(tempTs)) {
+                        fs.unlinkSync(tempTs);
+                    }
+                    resolve(false);
+                }
             } else {
                 console.error(`\n❌ Error en yt-dlp. Código de salida: ${code}`);
+                if (fs.existsSync(tempTs)) {
+                    fs.unlinkSync(tempTs);
+                }
                 resolve(false);
             }
         });
