@@ -1,5 +1,10 @@
 node_modules/
-*.mp4
-*.part
-*.ytdl
-.gemini/
+scratch/
+temp_*.ts
+temp_*.mp4
+*.mp4.part
+*.mp4.ytdl
+*.ts.part
+*.ts.ytdl
+.env
+.agents/

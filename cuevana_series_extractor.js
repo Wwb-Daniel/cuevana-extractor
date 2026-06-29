@@ -167,6 +167,7 @@ function downloadAndRemux(stream, playerUrl, filename) {
         const args = [
             '--no-update',
             '--referer', referer,
+            '--extractor-args', 'generic:impersonate',
             '-o', tempTs,
             stream
         ];
