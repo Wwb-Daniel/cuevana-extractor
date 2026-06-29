@@ -148,23 +148,31 @@ function downloadWithYtdl(stream, playerUrl, filename) {
             if (code === 0) {
                 console.log(`\n🔄 Remuxando con ffmpeg + faststart a ${filename}...`);
                 try {
-                    console.log("Intentando remuxing estándar (auto-detect)...");
-                    execSync(`ffmpeg -y -i "${tempTs}" -c copy -movflags +faststart "${filename}"`, { stdio: 'inherit' });
-                    console.log(`✅ Remuxing estándar exitoso.`);
+                    let isFakePng = false;
+                    try {
+                        const fd = fs.openSync(tempTs, 'r');
+                        const header = Buffer.alloc(4);
+                        fs.readSync(fd, header, 0, 4, 0);
+                        fs.closeSync(fd);
+                        isFakePng = (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47);
+                    } catch (readErr) {
+                        console.log("Error leyendo cabecera del archivo temporal:", readErr.message);
+                    }
+
+                    if (isFakePng) {
+                        console.log("Detectada firma PNG falsa en los segmentos. Forzando demuxer mpegts...");
+                        execSync(`ffmpeg -y -f mpegts -i "${tempTs}" -c copy -movflags +faststart "${filename}"`, { stdio: 'inherit' });
+                    } else {
+                        console.log("Formato estándar detectado (auto-detect)...");
+                        execSync(`ffmpeg -y -i "${tempTs}" -c copy -movflags +faststart "${filename}"`, { stdio: 'inherit' });
+                    }
+                    console.log(`✅ Remuxing exitoso.`);
                     if (fs.existsSync(tempTs)) fs.unlinkSync(tempTs);
                     resolve(true);
                 } catch (err) {
-                    console.log(`⚠️ Falló remuxing estándar: ${err.message}. Intentando forzar demuxer mpegts (fix PNG falso)...`);
-                    try {
-                        execSync(`ffmpeg -y -f mpegts -i "${tempTs}" -c copy -movflags +faststart "${filename}"`, { stdio: 'inherit' });
-                        console.log(`✅ Remuxing forzado mpegts exitoso.`);
-                        if (fs.existsSync(tempTs)) fs.unlinkSync(tempTs);
-                        resolve(true);
-                    } catch (errFallback) {
-                        console.error(`❌ Ambos métodos de remuxing con ffmpeg fallaron:`, errFallback.message);
-                        if (fs.existsSync(tempTs)) fs.unlinkSync(tempTs);
-                        resolve(false);
-                    }
+                    console.error(`❌ Error al remuxar con ffmpeg:`, err.message);
+                    if (fs.existsSync(tempTs)) fs.unlinkSync(tempTs);
+                    resolve(false);
                 }
             } else {
                 console.error(`\n❌ Error en yt-dlp. Código de salida: ${code}`);
