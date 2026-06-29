@@ -146,20 +146,25 @@ function downloadWithYtdl(stream, playerUrl, filename) {
         
         child.on('close', (code) => {
             if (code === 0) {
-                console.log(`\n🔄 Remuxando stream MPEG-TS a MP4 limpio con ffmpeg...`);
+                console.log(`\n🔄 Remuxando con ffmpeg + faststart a ${filename}...`);
                 try {
-                    execSync(`ffmpeg -y -f mpegts -i "${tempTs}" -c copy -movflags +faststart "${filename}"`, { stdio: 'inherit' });
-                    console.log(`\n✅ Conversión completada exitosamente: ${filename}`);
-                    if (fs.existsSync(tempTs)) {
-                        fs.unlinkSync(tempTs);
-                    }
+                    console.log("Intentando remuxing estándar (auto-detect)...");
+                    execSync(`ffmpeg -y -i "${tempTs}" -c copy -movflags +faststart "${filename}"`, { stdio: 'inherit' });
+                    console.log(`✅ Remuxing estándar exitoso.`);
+                    if (fs.existsSync(tempTs)) fs.unlinkSync(tempTs);
                     resolve(true);
                 } catch (err) {
-                    console.error(`\n❌ Error al remuxar con ffmpeg:`, err.message);
-                    if (fs.existsSync(tempTs)) {
-                        fs.unlinkSync(tempTs);
+                    console.log(`⚠️ Falló remuxing estándar: ${err.message}. Intentando forzar demuxer mpegts (fix PNG falso)...`);
+                    try {
+                        execSync(`ffmpeg -y -f mpegts -i "${tempTs}" -c copy -movflags +faststart "${filename}"`, { stdio: 'inherit' });
+                        console.log(`✅ Remuxing forzado mpegts exitoso.`);
+                        if (fs.existsSync(tempTs)) fs.unlinkSync(tempTs);
+                        resolve(true);
+                    } catch (errFallback) {
+                        console.error(`❌ Ambos métodos de remuxing con ffmpeg fallaron:`, errFallback.message);
+                        if (fs.existsSync(tempTs)) fs.unlinkSync(tempTs);
+                        resolve(false);
                     }
-                    resolve(false);
                 }
             } else {
                 console.error(`\n❌ Error en yt-dlp. Código de salida: ${code}`);

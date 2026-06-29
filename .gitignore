@@ -1,10 +1,10 @@
 node_modules/
 scratch/
-temp_*.ts
-temp_*.mp4
-*.mp4.part
-*.mp4.ytdl
-*.ts.part
-*.ts.ytdl
+temp_*
+*.ts
+*.mp4
+*.part
+*.part-*
+*.ytdl
 .env
 .agents/
