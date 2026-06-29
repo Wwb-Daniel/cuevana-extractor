@@ -1,0 +1,49 @@
+name: Sincronización Diaria Automática (Series + Películas)
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Todos los días a la medianoche UTC (8:00 PM hora local)
+  workflow_dispatch: # Permite ejecución manual
+
+permissions:
+  contents: write
+
+jobs:
+  daily-sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependencias de Node
+        run: |
+          npm ci || npm install
+
+      - name: Instalar dependencias del sistema (Xvfb, ffmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb ffmpeg
+
+      - name: Instalar yt-dlp y dependencias de Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install yt-dlp boto3 curl-cffi
+          yt-dlp --version
+
+      - name: Ejecutar Motor de Sincronización Diaria
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          R2_ACCESS_KEY_ID: 'fe39bf665d06666923f48b5763240c4f'
+          R2_SECRET_ACCESS_KEY: '8a1e2ff8f0305ce224ef7e8cbb82f4bda97103ffd6a35d99ec7f2ad8853cf7ba'
+          SUPABASE_PREMIUM_URL: 'https://temrkymyquqjayxpfifk.supabase.co'
+          SUPABASE_PREMIUM_ANON_KEY: 'sb_publishable_ZyScqqMR8DOPPZAHYNXLfw_c-4Ouea3'
+        run: |
+          # Correr el motor de sincronización bajo Xvfb para Puppeteer headless
+          xvfb-run --server-args="-screen 0 1280x1024x24" node daily_sync.js
