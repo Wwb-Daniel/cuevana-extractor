@@ -488,7 +488,9 @@ async function syncSeriesAndEpisodes(chromePath) {
         
         // b. Asegurar existencia de la serie en la tabla premium_series
         const seriesCheck = await makeSupabaseRequest(`premium_series?id=eq.${candidate.seriesSlug}`, 'GET');
+        let isNewSeries = false;
         if (!seriesCheck.data || seriesCheck.data.length === 0) {
+            isNewSeries = true;
             console.log(`🆕 Creando nueva serie en DB: '${candidate.seriesSlug}'...`);
             const seriesUrl = `https://cuevana.you/serie/${candidate.seriesSlug}`;
             const sMeta = await scrapeSeriesMetadata(seriesUrl, chromePath);
@@ -521,6 +523,27 @@ async function syncSeriesAndEpisodes(chromePath) {
                 };
                 await makeSupabaseRequest('premium_series', 'POST', seriesRecord);
             }
+
+            // Si es una serie nueva, disparar el workflow de descarga completa en segundo plano
+            try {
+                const ghToken = process.env.GITHUB_TOKEN;
+                if (ghToken) {
+                    console.log(`🚀 Disparando descarga completa en segundo plano para la nueva serie: ${candidate.seriesSlug}...`);
+                    const targetSeriesUrl = `https://cuevana.you/serie/${candidate.seriesSlug}`;
+                    const cmd = `gh workflow run download_series.yml -f series_url="${targetSeriesUrl}" -f seasons="all" -f episodes="all"`;
+                    execSync(cmd, { env: { ...process.env, GH_TOKEN: ghToken }, stdio: 'inherit' });
+                    console.log(`✅ Workflow disparado para ${candidate.seriesSlug}.`);
+                } else {
+                    console.log("⚠️ GITHUB_TOKEN no disponible en las variables de entorno, no se pudo disparar la descarga completa.");
+                }
+            } catch (triggerErr) {
+                console.error(`❌ Error al disparar workflow de descarga completa:`, triggerErr.message);
+            }
+        }
+
+        if (isNewSeries) {
+            console.log(`⏭️ La serie '${candidate.seriesSlug}' es nueva y ya se mandó a descargar completa en segundo plano. Saltando descarga individual.`);
+            continue;
         }
         
         // c. Descargar episodio
