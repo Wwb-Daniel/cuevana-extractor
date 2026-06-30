@@ -160,7 +160,7 @@ async function extractM3u8(playerUrl) {
 
 function downloadAndRemux(stream, playerUrl, filename) {
     return new Promise((resolve, reject) => {
-        const referer = playerUrl.split('/e/')[0] + '/';
+        const referer = new URL(playerUrl).origin + '/';
         const tempTs = 'temp_episode.ts';
         console.log(`\n📥 Descargando HLS a TS: ${tempTs}...`);
         

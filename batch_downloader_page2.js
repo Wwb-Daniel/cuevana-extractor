@@ -127,7 +127,7 @@ async function extractM3u8(playerUrl, chromePath) {
 
 function downloadWithYtdl(stream, playerUrl, filename) {
     return new Promise((resolve, reject) => {
-        const referer = playerUrl.split('/e/')[0] + '/';
+        const referer = new URL(playerUrl).origin + '/';
         const tempTs = 'temp_download.ts';
         console.log(`\n📥 Descargando HLS a TS: ${tempTs}...`);
         
