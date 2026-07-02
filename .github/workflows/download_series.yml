@@ -53,7 +53,7 @@ jobs:
         env:
           R2_ACCESS_KEY_ID: 'fe39bf665d06666923f48b5763240c4f'
           R2_SECRET_ACCESS_KEY: '8a1e2ff8f0305ce224ef7e8cbb82f4bda97103ffd6a35d99ec7f2ad8853cf7ba'
-          SUPABASE_PREMIUM_URL: 'https://temrkymyquqjayxpfifk.supabase.co'
-          SUPABASE_PREMIUM_ANON_KEY: 'sb_publishable_ZyScqqMR8DOPPZAHYNXLfw_c-4Ouea3'
+          SUPABASE_PREMIUM_URL: 'https://pdvdnjmqgcprwntabvia.supabase.co'
+          SUPABASE_PREMIUM_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkdmRuam1xZ2NwcndudGFidmlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NTgwNjIsImV4cCI6MjA5ODEzNDA2Mn0.8qcpYfWH9bwDrEQSKzbYvKOqlYpBQmqNWgykTQBXO60'
         run: |
           xvfb-run --server-args="-screen 0 1280x1024x24" node cuevana_series_extractor.js "${{ github.event.inputs.series_url }}" "${{ github.event.inputs.seasons }}" "${{ github.event.inputs.episodes }}"

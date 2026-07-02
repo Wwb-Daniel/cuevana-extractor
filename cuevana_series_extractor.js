@@ -13,8 +13,8 @@ const SERVERS = {
     '4': 'https://dood.li/e/'
 };
 
-const SUPABASE_URL = process.env.SUPABASE_PREMIUM_URL || 'https://temrkymyquqjayxpfifk.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_PREMIUM_ANON_KEY || 'sb_publishable_ZyScqqMR8DOPPZAHYNXLfw_c-4Ouea3';
+const SUPABASE_URL = process.env.SUPABASE_PREMIUM_URL || 'https://pdvdnjmqgcprwntabvia.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_PREMIUM_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkdmRuam1xZ2NwcndudGFidmlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NTgwNjIsImV4cCI6MjA5ODEzNDA2Mn0.8qcpYfWH9bwDrEQSKzbYvKOqlYpBQmqNWgykTQBXO60';
 
 const R2_PUBLIC_URL = 'https://pub-77522f1e717f46bead2250b84f1ca547.r2.dev';
 
@@ -248,6 +248,7 @@ function registerSeriesToSupabase(seriesData) {
     });
 }
 
+// Función para registrar un episodio en Supabase, manejando duplicados
 function registerEpisodeToSupabase(episodeData) {
     return new Promise((resolve, reject) => {
         const url = `${SUPABASE_URL}/rest/v1/premium_episodes`;
@@ -374,10 +375,9 @@ function reFindAll(text, regex) {
     return matches;
 }
 
-// Procesa una película de serie (Episodio)
+// Procesa un episodio
 async function processEpisode(episodeUrl, seriesId, season, episodeNum) {
     console.log(`\n================================================================`);
-    // El nombre de archivo final será limpio
     const filename = `${seriesId}_S${season}E${episodeNum}.mp4`;
     console.log(`📺 PROCESANDO EPISODIO: Temporada ${season}, Episodio ${episodeNum}`);
     console.log(`URL: ${episodeUrl}`);
@@ -453,7 +453,7 @@ async function processEpisode(episodeUrl, seriesId, season, episodeNum) {
         number: episodeNum,
         title: `Episodio ${episodeNum}`,
         url: `${R2_PUBLIC_URL}/${filename}`,
-        duration: '45m',
+        duration: '22m',
         description: `Temporada ${season} - Episodio ${episodeNum}`
     };
     
