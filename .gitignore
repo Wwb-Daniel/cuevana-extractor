@@ -8,3 +8,9 @@ temp_*
 *.ytdl
 .env
 .agents/
+
+# Anime Scraper Ignores
+anime/node_modules/
+anime/.env
+anime/animes.json
+animes.json

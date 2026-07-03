@@ -1,0 +1,124 @@
+name: Anime Scraper Diario
+
+on:
+  # Ejecutar todos los dias a las 6:00 AM UTC (2:00 AM hora de Colombia)
+  schedule:
+    - cron: '0 6 * * *'
+
+  # Permite ejecutarlo manualmente desde la pestana Actions de GitHub
+  workflow_dispatch:
+
+jobs:
+  scrape:
+    name: Scrape and Sync Animes
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      # 1. Checkout del codigo
+      - name: Checkout repositorio
+        uses: actions/checkout@v4
+
+      # 2. Configurar Node.js 20
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: anime/package-lock.json
+
+      # 3. Configurar Python 3.11
+      - name: Configurar Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      # 4. Instalar Google Chrome estable
+      - name: Instalar Google Chrome
+        run: |
+          wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+          echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" | sudo tee /etc/apt/sources.list.d/google-chrome.list
+          sudo apt-get update -q
+          sudo apt-get install -y google-chrome-stable
+          google-chrome --version
+
+      # 5. Instalar Selenium y webdriver-manager (auto-descarga ChromeDriver compatible)
+      - name: Instalar dependencias Python
+        run: pip install selenium webdriver-manager
+
+      # 6. Actualizar fetch_html.py para que use webdriver-manager en Linux
+      - name: Parchear fetch_html.py para Linux CI
+        run: |
+          cat > anime/fetch_html.py << 'PYEOF'
+          import sys
+          import time
+          from selenium import webdriver
+          from selenium.webdriver.chrome.service import Service
+          from selenium.webdriver.chrome.options import Options
+          from webdriver_manager.chrome import ChromeDriverManager
+
+          def get_html(url):
+              chrome_options = Options()
+              chrome_options.add_argument('--headless')
+              chrome_options.add_argument('--no-sandbox')
+              chrome_options.add_argument('--disable-dev-shm-usage')
+              chrome_options.add_argument('--disable-gpu')
+              chrome_options.add_argument('--window-size=1920,1080')
+              chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+              chrome_options.add_experimental_option('excludeSwitches', ['enable-automation'])
+              chrome_options.add_argument(
+                  "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                  "AppleWebKit/537.36 (KHTML, like Gecko) "
+                  "Chrome/122.0.0.0 Safari/537.36"
+              )
+              service = Service(ChromeDriverManager().install())
+              driver = webdriver.Chrome(service=service, options=chrome_options)
+              try:
+                  driver.get(url)
+                  time.sleep(12)
+                  return driver.page_source
+              finally:
+                  driver.quit()
+
+          if __name__ == "__main__":
+              import io
+              sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+              if len(sys.argv) > 1:
+                  print(get_html(sys.argv[1]))
+          PYEOF
+          echo "fetch_html.py parcheado correctamente."
+
+      # 7. Instalar dependencias Node
+      - name: Instalar dependencias npm
+        run: npm ci
+        working-directory: anime
+
+      # 8. Crear archivo .env con los secrets de GitHub
+      - name: Crear .env desde secrets
+        run: |
+          printf 'BASE_URL=%s\nSUPABASE_URL=%s\nSUPABASE_KEY=%s\n' \
+            "$BASE_URL" "$SUPABASE_URL" "$SUPABASE_KEY" > anime/.env
+          echo ".env creado."
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
+      # 9. Ejecutar el scraper principal
+      - name: Ejecutar anime scraper
+        run: node index.js
+        working-directory: anime
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          WDM_LOG: 0
+
+      # 10. Confirmar resultado
+      - name: Scraping completado
+        if: success()
+        run: echo "Scraping finalizado exitosamente - $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+
+      - name: Reportar fallo
+        if: failure()
+        run: echo "El scraper fallo. Revisar los logs anteriores para mas detalles."
