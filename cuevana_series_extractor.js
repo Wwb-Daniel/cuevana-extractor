@@ -367,6 +367,9 @@ async function getSeriesMetadata(seriesUrl, seriesSlug) {
         if (castMatch) {
             cast = castMatch[1].trim();
         }
+
+        // 7. Rating real (score de TMDB que Cuevana muestra en la página)
+        const rating = extractRating(html);
         
         return {
             id: seriesSlug,
@@ -377,7 +380,7 @@ async function getSeriesMetadata(seriesUrl, seriesSlug) {
             description,
             genres,
             cast,
-            rating: '7.8'
+            rating
         };
     } catch(e) {
         console.error("Error al extraer metadatos de la serie:", e.message);
@@ -392,6 +395,43 @@ function reFindAll(text, regex) {
         matches.push(match[1]);
     }
     return matches;
+}
+
+/**
+ * Extrae el rating/score real de la página HTML de Cuevana.
+ * Cuevana muestra el score de TMDB como un número (ej. 8.2, 7.5).
+ * Intenta múltiples patrones para mayor robustez.
+ */
+function extractRating(html) {
+    if (!html) return null;
+
+    // 1. Atributo data-score o data-rating (algunos temas lo usan)
+    const dataScore = html.match(/data-score=["']([\d.]+)["']/i)
+        || html.match(/data-rating=["']([\d.]+)["']/i);
+    if (dataScore) {
+        const val = parseFloat(dataScore[1]);
+        if (!isNaN(val) && val > 0 && val <= 10) return val.toFixed(1);
+    }
+
+    // 2. Span/div con clase que contenga 'score', 'rating', 'nota', 'puntuacion'
+    const classScore = html.match(/<[^>]*class="[^"]*(?:score|rating|nota|puntuacion|vote)[^"]*"[^>]*>\s*([\d.]+)\s*<\/[^>]+>/i);
+    if (classScore) {
+        const val = parseFloat(classScore[1]);
+        if (!isNaN(val) && val > 0 && val <= 10) return val.toFixed(1);
+    }
+
+    // 3. Patron: "Puntuacion" o "Calificacion" seguido del número
+    const labelScore = html.match(/(?:puntuaci[oó]n|calificaci[oó]n|vote[_\s]average|score)[^\d]*([\d.]{3,4})/i);
+    if (labelScore) {
+        const val = parseFloat(labelScore[1]);
+        if (!isNaN(val) && val > 0 && val <= 10) return val.toFixed(1);
+    }
+
+    // 4. Patron generico: número decimal entre 5 y 9.9 junto a '/10' o '★'
+    const genericScore = html.match(/([5-9]\.[0-9])\s*(?:\/\s*10|★|<\/span>\s*<span[^>]*>\s*\/\s*10)/i);
+    if (genericScore) return parseFloat(genericScore[1]).toFixed(1);
+
+    return null; // No encontrado — se guardará como null en la DB
 }
 
 // Procesa un episodio

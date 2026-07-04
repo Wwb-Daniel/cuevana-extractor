@@ -226,6 +226,27 @@ const generateSlug = (title) => {
         .replace(/^-|-$/g, "");
 }
 
+/**
+ * Extrae el rating/score real desde el HTML de Cuevana.
+ * Prueba múltiples patrones para cubrir variaciones del tema.
+ */
+function extractRatingFromHtml(html) {
+    if (!html) return null;
+    // 1. data-score o data-rating como atributo HTML
+    const dataAttr = html.match(/data-(?:score|rating)=["']([\d.]+)["']/i);
+    if (dataAttr) { const v = parseFloat(dataAttr[1]); if (v > 0 && v <= 10) return v.toFixed(1); }
+    // 2. Clase que sugiere calificación
+    const classEl = html.match(/<[^>]*class="[^"]*(?:score|rating|nota|puntuacion|vote)[^"]*"[^>]*>\s*([\d.]+)\s*<\/[^>]+>/i);
+    if (classEl) { const v = parseFloat(classEl[1]); if (v > 0 && v <= 10) return v.toFixed(1); }
+    // 3. Etiqueta de texto + número
+    const labelEl = html.match(/(?:puntuaci[oó]n|calificaci[oó]n|vote[_\s]average|score)[^\d]*([\d.]{3,4})/i);
+    if (labelEl) { const v = parseFloat(labelEl[1]); if (v > 0 && v <= 10) return v.toFixed(1); }
+    // 4. Número decimal junto a /10 o estrella
+    const generic = html.match(/([5-9]\.[0-9])\s*(?:\/\s*10|★)/i);
+    if (generic) return parseFloat(generic[1]).toFixed(1);
+    return null;
+}
+
 async function scrapeSeriesMetadata(seriesUrl, chromePath) {
     console.log(`[Puppeteer] Obteniendo metadatos de serie: ${seriesUrl}`);
     let browser;
@@ -287,8 +308,24 @@ async function scrapeSeriesMetadata(seriesUrl, chromePath) {
                 const match = text.match(/\b(202\d)\b/);
                 if (match) year = parseInt(match[1]);
             });
+
+            // Rating: buscar en el DOM (score de TMDB que muestra Cuevana)
+            let rating = null;
+            // a) atributo data-score/data-rating
+            const scoreEl = document.querySelector('[data-score], [data-rating], [class*="score"], [class*="rating"], [class*="nota"], [class*="puntuacion"]');
+            if (scoreEl) {
+                const raw = scoreEl.dataset.score || scoreEl.dataset.rating || scoreEl.innerText.trim();
+                const parsed = parseFloat(raw);
+                if (!isNaN(parsed) && parsed > 0 && parsed <= 10) rating = parsed.toFixed(1);
+            }
+            // b) Texto con /10
+            if (!rating) {
+                const allText = document.body.innerText;
+                const m = allText.match(/([5-9]\.[0-9])\s*\/\s*10/);
+                if (m) rating = parseFloat(m[1]).toFixed(1);
+            }
             
-            return { title, description, poster, backdrop, genres, year };
+            return { title, description, poster, backdrop, genres, year, rating };
         });
         
         await browser.close();
@@ -368,8 +405,22 @@ async function scrapeMovieMetadata(movieUrl, chromePath) {
                 const match = text.match(/\b(202\d)\b/);
                 if (match) year = parseInt(match[1]);
             });
+
+            // Rating: buscar en el DOM
+            let rating = null;
+            const scoreEl = document.querySelector('[data-score], [data-rating], [class*="score"], [class*="rating"], [class*="nota"], [class*="puntuacion"]');
+            if (scoreEl) {
+                const raw = scoreEl.dataset.score || scoreEl.dataset.rating || scoreEl.innerText.trim();
+                const parsed = parseFloat(raw);
+                if (!isNaN(parsed) && parsed > 0 && parsed <= 10) rating = parsed.toFixed(1);
+            }
+            if (!rating) {
+                const allText = document.body.innerText;
+                const m = allText.match(/([5-9]\.[0-9])\s*\/\s*10/);
+                if (m) rating = parseFloat(m[1]).toFixed(1);
+            }
             
-            return { title, description, poster, backdrop, genres, duration, year };
+            return { title, description, poster, backdrop, genres, duration, year, rating };
         });
         
         await browser.close();
@@ -469,7 +520,7 @@ async function syncMovies(chromePath) {
                             genres: metadata.genres,
                             cast: '',
                             description: metadata.description || 'Sin descripción disponible.',
-                            rating: '4.5 IMDb',
+                            rating: metadata.rating || null,
                             quality: '4K Ultra HD',
                             is_featured: false,
                             created_at: new Date().toISOString()
@@ -552,7 +603,7 @@ async function syncSeriesAndEpisodes(chromePath) {
                     description: sMeta.description || 'Sin descripción disponible.',
                     genres: sMeta.genres || [],
                     cast: '',
-                    rating: '7.8'
+                    rating: sMeta.rating || null
                 };
                 await makeSupabaseRequest('premium_series', 'POST', seriesRecord);
                 console.log(`✅ Serie '${sMeta.title}' creada con éxito.`);
@@ -567,7 +618,7 @@ async function syncSeriesAndEpisodes(chromePath) {
                     description: 'Sin descripción.',
                     genres: [],
                     cast: '',
-                    rating: '7.8'
+                    rating: null
                 };
                 await makeSupabaseRequest('premium_series', 'POST', seriesRecord);
             }
