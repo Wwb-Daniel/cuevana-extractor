@@ -1,0 +1,48 @@
+name: Sync Películas (Automático Diario)
+
+on:
+  schedule:
+    - cron: '0 2 * * *'  # Todos los días a las 02:00 UTC (10:00 PM hora local)
+  workflow_dispatch:       # También permite ejecución manual
+
+permissions:
+  contents: write
+
+jobs:
+  sync-movies:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependencias de Node
+        run: npm ci || npm install
+
+      - name: Instalar dependencias del sistema (Xvfb, ffmpeg)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y xvfb ffmpeg
+
+      - name: Instalar yt-dlp y dependencias de Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install yt-dlp boto3 curl-cffi
+          yt-dlp --version
+
+      - name: 🎬 Ejecutar Sync de Películas
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          SUPABASE_PREMIUM_URL: ${{ secrets.SUPABASE_PREMIUM_URL }}
+          SUPABASE_PREMIUM_ANON_KEY: ${{ secrets.SUPABASE_PREMIUM_ANON_KEY }}
+        run: |
+          xvfb-run --server-args="-screen 0 1280x1024x24" node sync_movies.js
