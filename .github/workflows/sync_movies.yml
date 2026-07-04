@@ -1,8 +1,10 @@
-name: Sync Películas (Automático Diario)
+name: Sync Películas (3x al Día)
 
 on:
   schedule:
-    - cron: '0 2 * * *'  # Todos los días a las 02:00 UTC (10:00 PM hora local)
+    - cron: '0 0 * * *'   # 00:00 UTC  (8:00 PM hora local)
+    - cron: '0 8 * * *'   # 08:00 UTC  (4:00 AM hora local)
+    - cron: '0 16 * * *'  # 16:00 UTC  (12:00 PM hora local)
   workflow_dispatch:       # También permite ejecución manual
 
 permissions:

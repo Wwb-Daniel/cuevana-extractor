@@ -1,9 +1,10 @@
-name: Anime Scraper Diario
+name: Anime Scraper (3x al Día)
 
 on:
-  # Ejecutar todos los dias a las 6:00 AM UTC (2:00 AM hora de Colombia)
   schedule:
-    - cron: '0 6 * * *'
+    - cron: '0 4 * * *'   # 04:00 UTC  (12:00 AM hora local)
+    - cron: '0 12 * * *'  # 12:00 UTC  (8:00 AM hora local)
+    - cron: '0 20 * * *'  # 20:00 UTC  (4:00 PM hora local)
 
   # Permite ejecutarlo manualmente desde la pestana Actions de GitHub
   workflow_dispatch:

@@ -1,8 +1,10 @@
-name: Sync Series (Automático Diario)
+name: Sync Series (3x al Día)
 
 on:
   schedule:
-    - cron: '0 4 * * *'  # Todos los días a las 04:00 UTC (12:00 AM hora local)
+    - cron: '0 2 * * *'   # 02:00 UTC  (10:00 PM hora local)
+    - cron: '0 10 * * *'  # 10:00 UTC  (6:00 AM hora local)
+    - cron: '0 18 * * *'  # 18:00 UTC  (2:00 PM hora local)
   workflow_dispatch:       # También permite ejecución manual
 
 permissions:
