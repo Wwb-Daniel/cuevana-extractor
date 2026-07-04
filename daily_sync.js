@@ -241,9 +241,33 @@ async function scrapeSeriesMetadata(seriesUrl, chromePath) {
         
         const metadata = await page.evaluate(() => {
             const title = document.querySelector('h1')?.innerText?.trim() || '';
-            const paragraphs = Array.from(document.querySelectorAll('p'));
-            const descriptionEl = paragraphs.find(p => p.innerText && p.innerText.trim().length > 100);
-            const description = descriptionEl ? descriptionEl.innerText.trim() : '';
+
+            // 1. Sinopsis: Intentar selectores específicos primero
+            let description = '';
+            const resumenEl = document.querySelector('.resumen, [class*="resumen"], .sinopsis, [class*="sinopsis"]');
+            if (resumenEl && resumenEl.innerText.trim().length > 50) {
+                description = resumenEl.innerText.trim();
+            }
+            // 2. Fallback: og:description (meta tag - muy confiable)
+            if (!description) {
+                const ogDesc = document.querySelector('meta[property="og:description"]');
+                if (ogDesc && ogDesc.content && ogDesc.content.trim().length > 50) {
+                    description = ogDesc.content.trim();
+                }
+            }
+            // 3. Fallback: meta description
+            if (!description) {
+                const metaDesc = document.querySelector('meta[name="description"]');
+                if (metaDesc && metaDesc.content && metaDesc.content.trim().length > 50) {
+                    description = metaDesc.content.trim();
+                }
+            }
+            // 4. Último recurso: primer párrafo con suficiente texto que no sea nav
+            if (!description) {
+                const paragraphs = Array.from(document.querySelectorAll('article p, main p, .content p'));
+                const descriptionEl = paragraphs.find(p => p.innerText && p.innerText.trim().length > 100);
+                description = descriptionEl ? descriptionEl.innerText.trim() : '';
+            }
             
             const imgs = Array.from(document.querySelectorAll('img'));
             const posterImg = imgs.find(img => img.src && img.src.includes('image.tmdb.org/t/p/w200/'));
@@ -291,9 +315,33 @@ async function scrapeMovieMetadata(movieUrl, chromePath) {
         
         const metadata = await page.evaluate(() => {
             const title = document.querySelector('h1')?.innerText?.trim() || '';
-            const paragraphs = Array.from(document.querySelectorAll('p'));
-            const descriptionEl = paragraphs.find(p => p.innerText && p.innerText.trim().length > 100);
-            const description = descriptionEl ? descriptionEl.innerText.trim() : '';
+
+            // 1. Sinopsis: Intentar selectores específicos primero
+            let description = '';
+            const resumenEl = document.querySelector('.resumen, [class*="resumen"], .sinopsis, [class*="sinopsis"]');
+            if (resumenEl && resumenEl.innerText.trim().length > 50) {
+                description = resumenEl.innerText.trim();
+            }
+            // 2. Fallback: og:description (meta tag)
+            if (!description) {
+                const ogDesc = document.querySelector('meta[property="og:description"]');
+                if (ogDesc && ogDesc.content && ogDesc.content.trim().length > 50) {
+                    description = ogDesc.content.trim();
+                }
+            }
+            // 3. Fallback: meta description
+            if (!description) {
+                const metaDesc = document.querySelector('meta[name="description"]');
+                if (metaDesc && metaDesc.content && metaDesc.content.trim().length > 50) {
+                    description = metaDesc.content.trim();
+                }
+            }
+            // 4. Último recurso: primer párrafo largo
+            if (!description) {
+                const paragraphs = Array.from(document.querySelectorAll('article p, main p, .content p'));
+                const descriptionEl = paragraphs.find(p => p.innerText && p.innerText.trim().length > 100);
+                description = descriptionEl ? descriptionEl.innerText.trim() : '';
+            }
             
             const imgs = Array.from(document.querySelectorAll('img'));
             const posterImg = imgs.find(img => img.src && img.src.includes('image.tmdb.org/t/p/w200/'));

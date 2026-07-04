@@ -1,0 +1,31 @@
+name: Fix Series Descriptions (Sinopsis Vacías)
+
+on:
+  workflow_dispatch: # Solo manual
+
+permissions:
+  contents: write
+
+jobs:
+  fix-descriptions:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependencias de Node
+        run: npm ci || npm install
+
+      - name: Corregir sinopsis vacías en premium_series
+        env:
+          SUPABASE_PREMIUM_URL: ${{ secrets.SUPABASE_PREMIUM_URL }}
+          SUPABASE_PREMIUM_ANON_KEY: ${{ secrets.SUPABASE_PREMIUM_ANON_KEY }}
+        run: node fix_series_descriptions.js

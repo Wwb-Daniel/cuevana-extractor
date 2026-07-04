@@ -319,12 +319,31 @@ async function getSeriesMetadata(seriesUrl, seriesSlug) {
             backdrop = tmdbPoster;
         }
         
-        // 3. Resumen
+        // 3. Resumen — Múltiples estrategias de extracción
         let description = '';
-        const descMatch = html.match(/<div class="resumen">([\s\S]*?)<\/div>/) || html.match(/<p class="resumen">([\s\S]*?)<\/p>/);
+
+        // 3a. Selector HTML directo: <div class="resumen"> o variantes
+        const descMatch = html.match(/<div[^>]*class="[^"]*resumen[^"]*"[^>]*>([\s\S]*?)<\/div>/i)
+            || html.match(/<p[^>]*class="[^"]*resumen[^"]*"[^>]*>([\s\S]*?)<\/p>/i)
+            || html.match(/<div[^>]*class="[^"]*sinopsis[^"]*"[^>]*>([\s\S]*?)<\/div>/i);
         if (descMatch) {
             description = descMatch[1].replace(/<[^>]*>/g, '').trim();
         }
+
+        // 3b. Fallback: og:description meta tag
+        if (!description || description.length < 30) {
+            const ogMatch = html.match(/<meta[^>]*property="og:description"[^>]*content="([^"]{50,})"[^>]*>/i)
+                || html.match(/<meta[^>]*content="([^"]{50,})"[^>]*property="og:description"[^>]*>/i);
+            if (ogMatch) description = ogMatch[1].trim();
+        }
+
+        // 3c. Fallback: meta name="description"
+        if (!description || description.length < 30) {
+            const metaMatch = html.match(/<meta[^>]*name="description"[^>]*content="([^"]{50,})"[^>]*>/i)
+                || html.match(/<meta[^>]*content="([^"]{50,})"[^>]*name="description"[^>]*>/i);
+            if (metaMatch) description = metaMatch[1].trim();
+        }
+
         
         // 4. Géneros
         const genres = [];

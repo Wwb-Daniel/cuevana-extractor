@@ -40,10 +40,11 @@ jobs:
       - name: Ejecutar Motor de Sincronización Diaria
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          R2_ACCESS_KEY_ID: 'fe39bf665d06666923f48b5763240c4f'
-          R2_SECRET_ACCESS_KEY: '8a1e2ff8f0305ce224ef7e8cbb82f4bda97103ffd6a35d99ec7f2ad8853cf7ba'
-          SUPABASE_PREMIUM_URL: 'https://temrkymyquqjayxpfifk.supabase.co'
-          SUPABASE_PREMIUM_ANON_KEY: 'sb_publishable_ZyScqqMR8DOPPZAHYNXLfw_c-4Ouea3'
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          SUPABASE_PREMIUM_URL: ${{ secrets.SUPABASE_PREMIUM_URL }}
+          SUPABASE_PREMIUM_ANON_KEY: ${{ secrets.SUPABASE_PREMIUM_ANON_KEY }}
         run: |
           # Correr el motor de sincronización bajo Xvfb para Puppeteer headless
           xvfb-run --server-args="-screen 0 1280x1024x24" node daily_sync.js
+
