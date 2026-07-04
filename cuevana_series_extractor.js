@@ -104,56 +104,65 @@ async function extractM3u8(playerUrl) {
         });
     }
 
-    const page = await browser.newPage();
+    let page;
     const streams = [];
 
-    page.on('request', request => {
-        const url = request.url();
-        if (url.includes('.m3u8') || url.includes('.mp4') || url.includes('.m4s') || url.includes('playlist') || url.includes('master')) {
-            if (!streams.includes(url)) {
-                streams.push(url);
-                console.log(`✨ [Capturado] URL de Stream encontrada: ${url}`);
+    try {
+        page = await browser.newPage();
+        page.on('request', request => {
+            const url = request.url();
+            if (url.includes('.m3u8') || url.includes('.mp4') || url.includes('.m4s') || url.includes('playlist') || url.includes('master')) {
+                if (!streams.includes(url)) {
+                    streams.push(url);
+                    console.log(`✨ [Capturado] URL de Stream encontrada: ${url}`);
+                }
+            }
+        });
+
+        try {
+            await page.goto(playerUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
+        } catch (e) {
+            // Ignorar timeouts
+        }
+
+        await new Promise(resolve => setTimeout(resolve, 5000));
+
+        if (streams.length === 0) {
+            console.log('[Puppeteer] Intentando simular clicks...');
+            try {
+                await page.evaluate(() => {
+                    const elements = [
+                        document.querySelector('video'),
+                        document.querySelector('.jw-video'),
+                        document.querySelector('.jw-display-icon-container'),
+                        document.querySelector('.play-button'),
+                        document.body
+                    ];
+                    for (const el of elements) {
+                        if (el) el.click();
+                    }
+                });
+                const width = await page.evaluate(() => window.innerWidth);
+                const height = await page.evaluate(() => window.innerHeight);
+                await page.mouse.click(width / 2, height / 2);
+                await new Promise(resolve => setTimeout(resolve, 8000));
+            } catch (e) {
+                console.log('Error al simular clicks:', e.message);
             }
         }
-    });
-
-    try {
-        await page.goto(playerUrl, { waitUntil: 'domcontentloaded', timeout: 20000 });
     } catch (e) {
-        // Ignorar timeouts
-    }
-
-    await new Promise(resolve => setTimeout(resolve, 5000));
-
-    if (streams.length === 0) {
-        console.log('[Puppeteer] Intentando simular clicks...');
-        try {
-            await page.evaluate(() => {
-                const elements = [
-                    document.querySelector('video'),
-                    document.querySelector('.jw-video'),
-                    document.querySelector('.jw-display-icon-container'),
-                    document.querySelector('.play-button'),
-                    document.body
-                ];
-                for (const el of elements) {
-                    if (el) el.click();
-                }
-            });
-            const width = await page.evaluate(() => window.innerWidth);
-            const height = await page.evaluate(() => window.innerHeight);
-            await page.mouse.click(width / 2, height / 2);
-            await new Promise(resolve => setTimeout(resolve, 8000));
-        } catch (e) {
-            console.log('Error al simular clicks:', e.message);
+        console.error('❌ Error en extracción de Puppeteer:', e.message);
+    } finally {
+        if (page) {
+            try { await page.close(); } catch (_) {}
         }
-    }
-
-    await page.close();
-    if (browser.process() !== null) {
-        await browser.close();
-    } else {
-        await browser.disconnect();
+        try {
+            if (browser.process() !== null) {
+                await browser.close();
+            } else {
+                await browser.disconnect();
+            }
+        } catch (_) {}
     }
     return streams;
 }
@@ -613,7 +622,13 @@ async function main() {
                 continue;
             }
             
-            await processEpisode(ep.url, seriesSlug, ep.season, ep.number);
+            try {
+                await processEpisode(ep.url, seriesSlug, ep.season, ep.number);
+            } catch (epError) {
+                console.error(`❌ Error crítico procesando episodio ${ep.season}x${ep.number}:`, epError.message);
+                console.log('Esperando 5 segundos para que Puppeteer se limpie antes de continuar...');
+                await new Promise(resolve => setTimeout(resolve, 5000));
+            }
         }
     }
     
