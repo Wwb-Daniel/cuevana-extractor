@@ -53,6 +53,55 @@ function fetchHtml(url) {
     });
 }
 
+function reFindAll(text, regex) {
+    const matches = [];
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+        matches.push(match[1]);
+    }
+    return matches;
+}
+
+function sortedUnique(arr) {
+    return Array.from(new Set(arr)).sort();
+}
+
+async function getSeriesEpisodes(seriesUrl, seriesSlug, chromePath) {
+    const episodes = [];
+    try {
+        const html = await fetchHtml(seriesUrl);
+        const seasonLinks = sortedUnique(reFindAll(html, /href=["']?([^"'\s>]*(?:temporada-\d+))["']?/g));
+        
+        for (const seasonLink of seasonLinks) {
+            let sLink = seasonLink;
+            if (!sLink.startsWith('http')) sLink = 'https://cuevana3i.you' + sLink;
+            
+            const seasonHtml = await fetchHtml(sLink);
+            const episodeLinks = sortedUnique(reFindAll(seasonHtml, /href=["']?([^"'\s>]*(?:episodio-\d+x\d+))["']?/g));
+            
+            for (const epLink of episodeLinks) {
+                let eLink = epLink;
+                if (!eLink.startsWith('http')) eLink = 'https://cuevana3i.you' + eLink;
+                
+                const epCode = eLink.split('episodio-')[1]; // ej. 1x1
+                const parts = epCode.split('x');
+                const season = parseInt(parts[0]);
+                const episode = parseInt(parts[1]);
+                
+                episodes.push({
+                    epUrl: eLink,
+                    seriesSlug,
+                    season,
+                    episode
+                });
+            }
+        }
+    } catch (err) {
+        console.error(`Error al obtener episodios de la serie ${seriesSlug}:`, err.message);
+    }
+    return episodes;
+}
+
 function decryptToken(tokenString) {
     try {
         if (tokenString.includes('token=')) {
@@ -266,26 +315,41 @@ async function syncSeries() {
 
     let html;
     try {
-        html = await fetchHtml('https://cuevana3i.you/episodios/recientes');
+        html = await fetchHtml('https://cuevana3i.you/series');
     } catch (e) {
-        console.error('Error al obtener lista de episodios recientes:', e.message);
+        console.error('Error al obtener catálogo de series:', e.message);
         return;
     }
 
-    // Captura links: /serie/<slug>/episodio-<season>x<episode>
-    const regexEp = /href=["']?([^"'\s>]*\/serie\/([^"'\s>]+)\/episodio-(\d+)x(\d+))["']?/g;
+    // Capturar links de series actualizadas en portada (página 1 de /series)
+    const regexSeries = /href=["']?([^"'\s>]*\/serie\/([^"'\s>\/]+))["']?/g;
     let match;
-    const candidates = [];
-    while ((match = regexEp.exec(html)) !== null) {
-        const epUrl = match[1];
-        const seriesSlug = match[2];
-        const season = parseInt(match[3]);
-        const episode = parseInt(match[4]);
-        if (!candidates.some(c => c.seriesSlug === seriesSlug && c.season === season && c.episode === episode)) {
-            candidates.push({ epUrl, seriesSlug, season, episode });
+    const seriesList = [];
+    while ((match = regexSeries.exec(html)) !== null) {
+        let url = match[1];
+        const slug = match[2];
+        if (!url.startsWith('http')) url = 'https://cuevana3i.you' + url;
+        if (!seriesList.some(s => s.slug === slug)) {
+            seriesList.push({ url, slug });
         }
     }
-    console.log(`Encontrados ${candidates.length} episodios recientes.`);
+    console.log(`Encontradas ${seriesList.length} series en portada.`);
+
+    const candidates = [];
+    for (const series of seriesList) {
+        console.log(`🔍 Escaneando episodios de la serie: '${series.slug}'...`);
+        const episodes = await getSeriesEpisodes(series.url, series.slug, chromePath);
+        console.log(`  Encontrados ${episodes.length} episodios en total.`);
+        
+        // Filtrar y guardar candidatos
+        for (const ep of episodes) {
+            if (!candidates.some(c => c.seriesSlug === ep.seriesSlug && c.season === ep.season && c.episode === ep.episode)) {
+                candidates.push(ep);
+            }
+        }
+    }
+    
+    console.log(`\nTotal candidatos a verificar en la DB: ${candidates.length} episodios.`);
 
     let added = 0;
     let skipped = 0;
