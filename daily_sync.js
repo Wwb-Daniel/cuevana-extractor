@@ -534,7 +534,26 @@ async function syncMovies(chromePath) {
                 if (downloaded) {
                     console.log(`📤 Subiendo '${cleanTitle}' a Cloudflare R2...`);
                     try {
-                        execSync(`python upload_to_r2.py "${cleanTitle}"`, { stdio: 'inherit' });
+                        let uploadSuccess = false;
+                        for (let attempt = 1; attempt <= 3; attempt++) {
+                            try {
+                                console.log(`📤 Subiendo a R2 (intento ${attempt}/3)...`);
+                                execSync(`python upload_to_r2.py "${cleanTitle}"`, { stdio: 'inherit' });
+                                uploadSuccess = true;
+                                break;
+                            } catch (uploadErr) {
+                                console.error(`⚠️ Error en intento ${attempt} de subida a R2:`, uploadErr.message);
+                                if (attempt < 3) {
+                                    console.log('Esperando 10 segundos antes de reintentar...');
+                                    await new Promise(r => setTimeout(r, 10000));
+                                }
+                            }
+                        }
+                        
+                        if (!uploadSuccess) {
+                            throw new Error(`Command failed: python upload_to_r2.py "${cleanTitle}"`);
+                        }
+                        
                         if (fs.existsSync(cleanTitle)) fs.unlinkSync(cleanTitle);
                         
                         const movieRecord = {
@@ -559,6 +578,8 @@ async function syncMovies(chromePath) {
                             console.log(`🎉 Película '${metadata.title}' registrada con éxito.`);
                             success = true;
                             break;
+                        } else {
+                            console.error(`❌ Error al registrar película en Supabase (status ${res.status}):`, res.data);
                         }
                     } catch (err) {
                         console.error("Error al subir o registrar película:", err.message);
@@ -700,7 +721,26 @@ async function syncSeriesAndEpisodes(chromePath) {
                 if (downloaded) {
                     console.log(`📤 Subiendo '${filename}' a Cloudflare R2...`);
                     try {
-                        execSync(`python upload_to_r2.py "${filename}"`, { stdio: 'inherit' });
+                        let uploadSuccess = false;
+                        for (let attempt = 1; attempt <= 3; attempt++) {
+                            try {
+                                console.log(`📤 Subiendo a R2 (intento ${attempt}/3)...`);
+                                execSync(`python upload_to_r2.py "${filename}"`, { stdio: 'inherit' });
+                                uploadSuccess = true;
+                                break;
+                            } catch (uploadErr) {
+                                console.error(`⚠️ Error en intento ${attempt} de subida a R2:`, uploadErr.message);
+                                if (attempt < 3) {
+                                    console.log('Esperando 10 segundos antes de reintentar...');
+                                    await new Promise(r => setTimeout(r, 10000));
+                                }
+                            }
+                        }
+
+                        if (!uploadSuccess) {
+                            throw new Error(`Command failed: python upload_to_r2.py "${filename}"`);
+                        }
+
                         if (fs.existsSync(filename)) fs.unlinkSync(filename);
                         
                         const epRecord = {
@@ -719,6 +759,8 @@ async function syncSeriesAndEpisodes(chromePath) {
                             console.log(`🎉 Episodio S${candidate.season}E${candidate.episode} registrado con éxito.`);
                             success = true;
                             break;
+                        } else {
+                            console.error(`❌ Error al registrar episodio en Supabase (status ${res.status}):`, res.data);
                         }
                     } catch (err) {
                         console.error("Error al subir o registrar episodio:", err.message);

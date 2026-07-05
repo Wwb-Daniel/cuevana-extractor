@@ -370,7 +370,26 @@ async function syncMovies() {
                 const downloaded = await downloadAndRemux(streams[0], playerUrl, filename);
                 if (downloaded) {
                     try {
-                        execSync(`python upload_to_r2.py "${filename}"`, { stdio: 'inherit' });
+                        let uploadSuccess = false;
+                        for (let attempt = 1; attempt <= 3; attempt++) {
+                            try {
+                                console.log(`📤 Subiendo a R2 (intento ${attempt}/3)...`);
+                                execSync(`python upload_to_r2.py "${filename}"`, { stdio: 'inherit' });
+                                uploadSuccess = true;
+                                break;
+                            } catch (uploadErr) {
+                                console.error(`⚠️ Error en intento ${attempt} de subida a R2:`, uploadErr.message);
+                                if (attempt < 3) {
+                                    console.log('Esperando 10 segundos antes de reintentar...');
+                                    await new Promise(r => setTimeout(r, 10000));
+                                }
+                            }
+                        }
+                        
+                        if (!uploadSuccess) {
+                            throw new Error(`Command failed: python upload_to_r2.py "${filename}"`);
+                        }
+
                         if (fs.existsSync(filename)) fs.unlinkSync(filename);
                         const record = {
                             id: slug,
@@ -394,6 +413,8 @@ async function syncMovies() {
                             success = true;
                             added++;
                             break;
+                        } else {
+                            console.error(`❌ Error al registrar película en Supabase (status ${res.status}):`, res.data);
                         }
                     } catch (err) { console.error('Error al subir/registrar película:', err.message); }
                 }
