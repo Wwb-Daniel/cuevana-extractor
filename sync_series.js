@@ -10,6 +10,34 @@ const { spawn, execSync } = require('child_process');
 // a la base de datos premium y Cloudflare R2.
 // ============================================================
 
+// Cargar .env.local si existe para facilitar la ejecución local
+try {
+    const path = require('path');
+    const envPath = path.resolve(__dirname, '../Cinema-main/Cinema-main/.env.local');
+    if (fs.existsSync(envPath)) {
+        const envContent = fs.readFileSync(envPath, 'utf-8');
+        envContent.split('\n').forEach(line => {
+            const match = line.match(/^\s*([\w.-]+)\s*=\s*(.*)?\s*$/);
+            if (match) {
+                const key = match[1];
+                let value = match[2] || '';
+                if (value.startsWith('"') && value.endsWith('"')) value = value.slice(1, -1);
+                if (value.startsWith("'") && value.endsWith("'")) value = value.slice(1, -1);
+                
+                // Mapear variables para compatibilidad
+                if (key.includes('SUPABASE_PREMIUM_URL')) {
+                    process.env.SUPABASE_PREMIUM_URL = value;
+                }
+                if (key.includes('SUPABASE_PREMIUM_ANON_KEY')) {
+                    process.env.SUPABASE_PREMIUM_ANON_KEY = value;
+                }
+            }
+        });
+    }
+} catch (e) {
+    // Silencioso
+}
+
 const XOR_KEY = 'a45f04ce-2394-47c3-b718-0ecd97ce51d6';
 const SERVERS = {
     '1': 'https://tiktokshopping.xyz/v/',
