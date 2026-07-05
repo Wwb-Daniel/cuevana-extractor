@@ -439,7 +439,7 @@ async function syncMovies(chromePath) {
     
     let html;
     try {
-        html = await fetchHtml('https://cuevana.you/peliculas');
+        html = await fetchHtml('https://cuevana3i.you/peliculas');
     } catch (e) {
         console.error("Error al obtener catálogo de películas:", e.message);
         return;
@@ -452,7 +452,7 @@ async function syncMovies(chromePath) {
     while ((match = regexLink.exec(html)) !== null) {
         let url = match[1];
         const title = match[2].trim();
-        if (!url.startsWith('http')) url = 'https://cuevana.you' + url;
+        if (!url.startsWith('http')) url = 'https://cuevana3i.you' + url;
         if (!candidates.some(c => c.url === url)) {
             candidates.push({ url, title });
         }
@@ -513,8 +513,8 @@ async function syncMovies(chromePath) {
                             id: slug,
                             title: metadata.title,
                             url: `https://pub-77522f1e717f46bead2250b84f1ca547.r2.dev/${cleanTitle}`,
-                            poster: metadata.poster || 'https://cuevana.you/cuevana3.png',
-                            backdrop: metadata.backdrop || metadata.poster || 'https://cuevana.you/cuevana3.png',
+                            poster: metadata.poster || 'https://cuevana3i.you/cuevana3.png',
+                            backdrop: metadata.backdrop || metadata.poster || 'https://cuevana3i.you/cuevana3.png',
                             year: metadata.year || new Date().getFullYear(),
                             duration: metadata.duration,
                             genres: metadata.genres,
@@ -551,7 +551,7 @@ async function syncSeriesAndEpisodes(chromePath) {
     
     let html;
     try {
-        html = await fetchHtml('https://cuevana.you/episodios/recientes');
+        html = await fetchHtml('https://cuevana3i.you/episodios/recientes');
     } catch (e) {
         console.error("Error al obtener lista de episodios recientes:", e.message);
         return;
@@ -591,14 +591,14 @@ async function syncSeriesAndEpisodes(chromePath) {
         if (!seriesCheck.data || seriesCheck.data.length === 0) {
             isNewSeries = true;
             console.log(`🆕 Creando nueva serie en DB: '${candidate.seriesSlug}'...`);
-            const seriesUrl = `https://cuevana.you/serie/${candidate.seriesSlug}`;
+            const seriesUrl = `https://cuevana3i.you/serie/${candidate.seriesSlug}`;
             const sMeta = await scrapeSeriesMetadata(seriesUrl, chromePath);
             if (sMeta && sMeta.title) {
                 const seriesRecord = {
                     id: candidate.seriesSlug,
                     title: sMeta.title,
-                    poster: sMeta.poster || 'https://cuevana.you/cuevana3.png',
-                    backdrop: sMeta.backdrop || sMeta.poster || 'https://cuevana.you/cuevana3.png',
+                    poster: sMeta.poster || 'https://cuevana3i.you/cuevana3.png',
+                    backdrop: sMeta.backdrop || sMeta.poster || 'https://cuevana3i.you/cuevana3.png',
                     year: sMeta.year || new Date().getFullYear(),
                     description: sMeta.description || 'Sin descripción disponible.',
                     genres: sMeta.genres || [],
@@ -612,8 +612,8 @@ async function syncSeriesAndEpisodes(chromePath) {
                 const seriesRecord = {
                     id: candidate.seriesSlug,
                     title: candidate.seriesSlug.replace(/-/g, ' ').toUpperCase(),
-                    poster: 'https://cuevana.you/cuevana3.png',
-                    backdrop: 'https://cuevana.you/cuevana3.png',
+                    poster: 'https://cuevana3i.you/cuevana3.png',
+                    backdrop: 'https://cuevana3i.you/cuevana3.png',
                     year: new Date().getFullYear(),
                     description: 'Sin descripción.',
                     genres: [],
@@ -628,7 +628,7 @@ async function syncSeriesAndEpisodes(chromePath) {
                 const ghToken = process.env.GITHUB_TOKEN;
                 if (ghToken) {
                     console.log(`🚀 Disparando descarga completa en segundo plano para la nueva serie: ${candidate.seriesSlug}...`);
-                    const targetSeriesUrl = `https://cuevana.you/serie/${candidate.seriesSlug}`;
+                    const targetSeriesUrl = `https://cuevana3i.you/serie/${candidate.seriesSlug}`;
                     const cmd = `gh workflow run download_series.yml -f series_url="${targetSeriesUrl}" -f seasons="all" -f episodes="all"`;
                     execSync(cmd, { env: { ...process.env, GH_TOKEN: ghToken }, stdio: 'inherit' });
                     console.log(`✅ Workflow disparado para ${candidate.seriesSlug}.`);

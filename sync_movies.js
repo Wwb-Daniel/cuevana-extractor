@@ -279,7 +279,7 @@ async function syncMovies() {
 
     let html;
     try {
-        html = await fetchHtml('https://cuevana.you/peliculas');
+        html = await fetchHtml('https://cuevana3i.you/peliculas');
     } catch (e) {
         console.error('Error al obtener catálogo de películas:', e.message);
         return;
@@ -291,7 +291,7 @@ async function syncMovies() {
     while ((match = regexLink.exec(html)) !== null) {
         let url = match[1];
         const title = match[2].trim();
-        if (!url.startsWith('http')) url = 'https://cuevana.you' + url;
+        if (!url.startsWith('http')) url = 'https://cuevana3i.you' + url;
         if (!candidates.some(c => c.url === url)) candidates.push({ url, title });
     }
     console.log(`Encontradas ${candidates.length} películas en portada.`);
@@ -348,8 +348,8 @@ async function syncMovies() {
                             id: slug,
                             title: metadata.title,
                             url: `${R2_PUBLIC_URL}/${filename}`,
-                            poster: metadata.poster || 'https://cuevana.you/cuevana3.png',
-                            backdrop: metadata.backdrop || metadata.poster || 'https://cuevana.you/cuevana3.png',
+                            poster: metadata.poster || 'https://cuevana3i.you/cuevana3.png',
+                            backdrop: metadata.backdrop || metadata.poster || 'https://cuevana3i.you/cuevana3.png',
                             year: metadata.year || new Date().getFullYear(),
                             duration: metadata.duration || '',
                             genres: metadata.genres || [],

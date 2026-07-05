@@ -266,7 +266,7 @@ async function syncSeries() {
 
     let html;
     try {
-        html = await fetchHtml('https://cuevana.you/episodios/recientes');
+        html = await fetchHtml('https://cuevana3i.you/episodios/recientes');
     } catch (e) {
         console.error('Error al obtener lista de episodios recientes:', e.message);
         return;
@@ -311,15 +311,15 @@ async function syncSeries() {
         if (!seriesCheck.data || seriesCheck.data.length === 0) {
             isNewSeries = true;
             console.log(`🆕 Creando entrada de serie: '${candidate.seriesSlug}'...`);
-            const seriesUrl = `https://cuevana.you/serie/${candidate.seriesSlug}`;
+            const seriesUrl = `https://cuevana3i.you/serie/${candidate.seriesSlug}`;
             const sMeta = await scrapeSeriesMetadata(seriesUrl, chromePath);
 
             if (sMeta && sMeta.title) {
                 const seriesRecord = {
                     id: candidate.seriesSlug,
                     title: sMeta.title,
-                    poster: sMeta.poster || 'https://cuevana.you/cuevana3.png',
-                    backdrop: sMeta.backdrop || sMeta.poster || 'https://cuevana.you/cuevana3.png',
+                    poster: sMeta.poster || 'https://cuevana3i.you/cuevana3.png',
+                    backdrop: sMeta.backdrop || sMeta.poster || 'https://cuevana3i.you/cuevana3.png',
                     year: sMeta.year || new Date().getFullYear(),
                     description: sMeta.description || '',
                     genres: sMeta.genres || [],
@@ -333,8 +333,8 @@ async function syncSeries() {
                 const seriesRecord = {
                     id: candidate.seriesSlug,
                     title: candidate.seriesSlug.replace(/-/g, ' '),
-                    poster: 'https://cuevana.you/cuevana3.png',
-                    backdrop: 'https://cuevana.you/cuevana3.png',
+                    poster: 'https://cuevana3i.you/cuevana3.png',
+                    backdrop: 'https://cuevana3i.you/cuevana3.png',
                     year: new Date().getFullYear(),
                     description: '',
                     genres: [],
@@ -348,7 +348,7 @@ async function syncSeries() {
             try {
                 const ghToken = process.env.GITHUB_TOKEN;
                 if (ghToken) {
-                    const targetUrl = `https://cuevana.you/serie/${candidate.seriesSlug}`;
+                    const targetUrl = `https://cuevana3i.you/serie/${candidate.seriesSlug}`;
                     const cmd = `gh workflow run download_series.yml -f series_url="${targetUrl}" -f seasons="all" -f episodes="all"`;
                     execSync(cmd, { env: { ...process.env, GH_TOKEN: ghToken }, stdio: 'inherit' });
                     console.log(`🚀 Workflow de descarga completa disparado para '${candidate.seriesSlug}'.`);
