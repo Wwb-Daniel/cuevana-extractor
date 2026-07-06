@@ -19,8 +19,13 @@ def upload():
     endpoint_url = f"https://{account_id}.r2.cloudflarestorage.com"
     
     # Credenciales de Cloudflare R2
-    access_key_id = os.environ.get("R2_ACCESS_KEY_ID", "fe39bf665d06666923f48b5763240c4f")
-    secret_access_key = os.environ.get("R2_SECRET_ACCESS_KEY", "8a1e2ff8f0305ce224ef7e8cbb82f4bda97103ffd6a35d99ec7f2ad8853cf7ba")
+    access_key_id = os.environ.get("R2_ACCESS_KEY_ID")
+    if not access_key_id or access_key_id.strip() == "":
+        access_key_id = "fe39bf665d06666923f48b5763240c4f"
+        
+    secret_access_key = os.environ.get("R2_SECRET_ACCESS_KEY")
+    if not secret_access_key or secret_access_key.strip() == "":
+        secret_access_key = "8a1e2ff8f0305ce224ef7e8cbb82f4bda97103ffd6a35d99ec7f2ad8853cf7ba"
     
     print(f"Inicializando cliente de Cloudflare R2...")
     s3 = boto3.client(
