@@ -384,6 +384,10 @@ async function syncSeries() {
     let failed = 0;
 
     for (const candidate of candidates) {
+        if (added >= 5) {
+            console.log("⚠️ Se alcanzó el límite de 5 episodios agregados por ejecución. Terminando...");
+            break;
+        }
         // a) Verificar si el episodio ya existe
         const epCheck = await makeSupabaseRequest(
             `premium_episodes?series_id=eq.${candidate.seriesSlug}&season_number=eq.${candidate.season}&number=eq.${candidate.episode}`,

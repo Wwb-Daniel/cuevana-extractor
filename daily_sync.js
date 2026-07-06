@@ -488,7 +488,12 @@ async function syncMovies(chromePath) {
     
     console.log(`Se encontraron ${candidates.length} películas en portada.`);
     
+    let added = 0;
     for (const candidate of candidates) {
+        if (added >= 3) {
+            console.log("⚠️ Se alcanzó el límite de 3 películas agregadas por ejecución. Terminando...");
+            break;
+        }
         const slug = generateSlug(candidate.title || candidate.url.split('/').pop());
         
         // Verificar existencia en DB
@@ -577,6 +582,7 @@ async function syncMovies(chromePath) {
                         if (res.status === 201 || res.status === 200 || res.status === 204) {
                             console.log(`🎉 Película '${metadata.title}' registrada con éxito.`);
                             success = true;
+                            added++;
                             break;
                         } else {
                             console.error(`❌ Error al registrar película en Supabase (status ${res.status}):`, res.data);
@@ -624,7 +630,12 @@ async function syncSeriesAndEpisodes(chromePath) {
     
     console.log(`Se encontraron ${candidates.length} episodios recientes en la lista.`);
     
+    let added = 0;
     for (const candidate of candidates) {
+        if (added >= 5) {
+            console.log("⚠️ Se alcanzó el límite de 5 episodios agregados por ejecución. Terminando...");
+            break;
+        }
         // a. Verificar si el episodio ya existe
         const epCheck = await makeSupabaseRequest(`premium_episodes?series_id=eq.${candidate.seriesSlug}&season_number=eq.${candidate.season}&number=eq.${candidate.episode}`, 'GET');
         if (epCheck.data && epCheck.data.length > 0) {
@@ -758,6 +769,7 @@ async function syncSeriesAndEpisodes(chromePath) {
                         if (res.status === 201 || res.status === 200 || res.status === 204) {
                             console.log(`🎉 Episodio S${candidate.season}E${candidate.episode} registrado con éxito.`);
                             success = true;
+                            added++;
                             break;
                         } else {
                             console.error(`❌ Error al registrar episodio en Supabase (status ${res.status}):`, res.data);

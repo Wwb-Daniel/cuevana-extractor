@@ -329,6 +329,10 @@ async function syncMovies() {
     let failed = 0;
 
     for (const candidate of candidates) {
+        if (added >= 3) {
+            console.log("⚠️ Se alcanzó el límite de 3 películas agregadas por ejecución. Terminando...");
+            break;
+        }
         const slug = generateSlug(candidate.title || candidate.url.split('/').pop());
 
         // Verificar si ya existe
