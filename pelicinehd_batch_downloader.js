@@ -237,10 +237,26 @@ async function run() {
             const list = [];
             document.querySelectorAll('a').forEach(el => {
                 const href = el.href;
-                const text = el.innerText ? el.innerText.trim() : '';
-                if (href && href.includes('/pelicula/') && text.length > 2) {
-                    if (!list.some(m => m.url === href)) {
-                        list.push({ url: href, title: text });
+                if (href && (href.includes('/movies/') || href.includes('/movie/') || href.includes('/pelicula/'))) {
+                    // Intentar obtener el título
+                    let titleText = el.innerText ? el.innerText.trim() : '';
+                    if (!titleText) {
+                        const img = el.querySelector('img');
+                        if (img && img.alt) titleText = img.alt.trim();
+                    }
+                    if (!titleText && el.closest('.item')) {
+                        const h3 = el.closest('.item').querySelector('h3, .title, .data a');
+                        if (h3) titleText = h3.innerText.trim();
+                    }
+                    if (!titleText && el.closest('article')) {
+                        const h2 = el.closest('article').querySelector('h2, h3, .title');
+                        if (h2) titleText = h2.innerText.trim();
+                    }
+                    
+                    if (titleText && titleText.length > 1) {
+                        if (!list.some(m => m.url === href)) {
+                            list.push({ url: href, title: titleText });
+                        }
                     }
                 }
             });
