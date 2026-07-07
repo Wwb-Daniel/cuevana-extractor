@@ -12,8 +12,8 @@ const SERVERS = {
     '4': 'https://dood.li/e/'
 };
 
-const SUPABASE_URL = process.env.SUPABASE_PREMIUM_URL || 'https://temrkymyquqjayxpfifk.supabase.co';
-const SUPABASE_KEY = process.env.SUPABASE_PREMIUM_ANON_KEY || 'sb_publishable_ZyScqqMR8DOPPZAHYNXLfw_c-4Ouea3';
+const SUPABASE_URL = process.env.SUPABASE_PREMIUM_URL || 'https://pdvdnjmqgcprwntabvia.supabase.co';
+const SUPABASE_KEY = process.env.SUPABASE_PREMIUM_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkdmRuam1xZ2NwcndudGFidmlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NTgwNjIsImV4cCI6MjA5ODEzNDA2Mn0.8qcpYfWH9bwDrEQSKzbYvKOqlYpBQmqNWgykTQBXO60';
 
 function getChromePath() {
     if (os.platform() === 'win32') {
@@ -359,7 +359,7 @@ async function startBatch() {
     console.log(`📋 Se encontraron ${candidates.length} películas en la Página 4.`);
     
     let downloadedCount = 0;
-    const limit = 20;
+    const limit = 6;
     
     for (const candidate of candidates) {
         if (downloadedCount >= limit) {
