@@ -44,34 +44,25 @@ jobs:
           pip install yt-dlp boto3 curl-cffi
           yt-dlp --version
 
-      - name: Iniciar servidor virtual de pantalla (Xvfb) y correr Extractor
+      - name: Iniciar servidor virtual de pantalla (Xvfb) y correr Descargador y Registrador
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          R2_ACCESS_KEY_ID: 'fe39bf665d06666923f48b5763240c4f'
+          R2_SECRET_ACCESS_KEY: '8a1e2ff8f0305ce224ef7e8cbb82f4bda97103ffd6a35d99ec7f2ad8853cf7ba'
+          SUPABASE_PREMIUM_URL: ${{ secrets.SUPABASE_PREMIUM_URL }}
+          SUPABASE_PREMIUM_ANON_KEY: ${{ secrets.SUPABASE_PREMIUM_ANON_KEY }}
         run: |
-          # Formatear el nombre de archivo de salida de base
-          TITLE_CLEAN=$(echo "${{ github.event.inputs.movie_title }}" | sed 's/[^a-zA-Z0-9]/_/g' | tr -s '_')
-          FILENAME="${TITLE_CLEAN}.mp4"
+          # Correr el descargador individual que realiza todo (descarga + metadata + R2 + Supabase)
+          xvfb-run --server-args="-screen 0 1280x1024x24" node download_single_movie.js "${{ github.event.inputs.movie_url }}" "${{ github.event.inputs.movie_title }}"
           
-          # Iniciar Xvfb para que Chrome pueda abrirse con GUI virtual si lo requiere Puppeteer
-          xvfb-run --server-args="-screen 0 1280x1024x24" node cuevana_extractor.js "${{ github.event.inputs.movie_url }}" "$FILENAME"
-
-          # Detectar el archivo real final (.mp4) creado en el directorio
+          # Detectar el archivo real final (.mp4) creado en el directorio para el paso de backup en Release
           ACTUAL_FILENAME=$(ls *.mp4 | head -n 1)
           if [ -n "$ACTUAL_FILENAME" ]; then
             echo "FILENAME=$ACTUAL_FILENAME" >> $GITHUB_ENV
             echo "Real filename detected: $ACTUAL_FILENAME"
           else
-            echo "FILENAME=$FILENAME" >> $GITHUB_ENV
-            echo "No mp4 file found, defaulting to: $FILENAME"
+            echo "FILENAME=video.mp4" >> $GITHUB_ENV
           fi
-
-      - name: Subir Película a Cloudflare R2 Storage
-        continue-on-error: true
-        env:
-          R2_ACCESS_KEY_ID: 'fe39bf665d06666923f48b5763240c4f'
-          R2_SECRET_ACCESS_KEY: '8a1e2ff8f0305ce224ef7e8cbb82f4bda97103ffd6a35d99ec7f2ad8853cf7ba'
-        run: |
-          python upload_to_r2.py "$FILENAME"
 
       - name: Crear Release y Subir Película (Backup en GitHub)
         env:
