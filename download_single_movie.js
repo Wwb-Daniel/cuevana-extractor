@@ -310,7 +310,7 @@ async function main() {
         process.exit(1);
     }
 
-    if (customTitle) {
+    if (customTitle && customTitle.trim() !== '' && customTitle.toLowerCase().trim() !== 'pelicula') {
         metadata.title = customTitle;
     }
 
