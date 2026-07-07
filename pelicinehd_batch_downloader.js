@@ -167,19 +167,53 @@ async function run() {
         process.exit(1);
     }
 
-    const browser = await puppeteer.launch({
-        executablePath: chromePath,
-        headless: false,
-        ignoreDefaultArgs: ['--enable-automation'],
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-web-security',
-            '--disable-blink-features=AutomationControlled'
-        ]
-    });
+    function getBrowserWSEndpoint(port) {
+        return new Promise((resolve, reject) => {
+            const http = require('http');
+            http.get(`http://127.0.0.1:${port}/json/version`, (res) => {
+                let data = '';
+                res.on('data', chunk => data += chunk);
+                res.on('end', () => {
+                    try {
+                        const versionInfo = JSON.parse(data);
+                        resolve(versionInfo.webSocketDebuggerUrl);
+                    } catch (e) { reject(e); }
+                });
+            }).on('error', reject);
+        });
+    }
 
-    const page = await browser.newPage();
+    let browser;
+    let isConnectedToExisting = false;
+    try {
+        console.log("🔗 Intentando conectar a un navegador Google Chrome existente en el puerto 9222...");
+        const wsEndpoint = await getBrowserWSEndpoint(9222);
+        browser = await puppeteer.connect({ browserWSEndpoint: wsEndpoint });
+        console.log("✅ ¡Conectado con éxito a tu navegador Chrome actual!");
+        isConnectedToExisting = true;
+    } catch (e) {
+        console.log("❌ No se detectó Chrome abierto en el puerto 9222. Iniciando navegador nuevo...");
+        browser = await puppeteer.launch({
+            executablePath: chromePath,
+            headless: false,
+            ignoreDefaultArgs: ['--enable-automation'],
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-web-security',
+                '--disable-blink-features=AutomationControlled'
+            ]
+        });
+    }
+
+    // Si nos conectamos a un navegador existente, usamos la pestaña activa o creamos una nueva
+    let page;
+    if (isConnectedToExisting) {
+        const pages = await browser.pages();
+        page = pages.find(p => p.url().includes('pelicinehd.com')) || pages[0] || await browser.newPage();
+    } else {
+        page = await browser.newPage();
+    }
     
     try {
         console.log("\n🔗 Cargando página de inicio/catálogo...");
@@ -368,7 +402,13 @@ async function run() {
     } catch (e) {
         console.error("Error general:", e.message);
     } finally {
-        await browser.close();
+        if (browser) {
+            if (isConnectedToExisting) {
+                browser.disconnect();
+            } else {
+                await browser.close();
+            }
+        }
     }
 }
 
