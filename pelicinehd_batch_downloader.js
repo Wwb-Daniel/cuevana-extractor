@@ -313,11 +313,22 @@ async function run() {
                 const descEl = document.querySelector('.description, .synopsis, #description, .entry-content p, article p');
                 if (descEl) description = descEl.innerText.trim();
 
-                const imgs = Array.from(document.querySelectorAll('img'));
-                const posterImg = imgs.find(img => img.src && img.src.includes('image.tmdb.org/t/p/w200/'));
-                const backdropImg = imgs.find(img => img.src && img.src.includes('image.tmdb.org/t/p/w1280/'));
-                const poster = posterImg ? posterImg.src : '';
-                const backdrop = backdropImg ? backdropImg.src : (posterImg ? posterImg.src : '');
+                const tmdbImgs = Array.from(document.querySelectorAll('img'))
+                    .map(img => img.src)
+                    .filter(src => src && src.includes('image.tmdb.org/t/p/'));
+                
+                let poster = '';
+                let backdrop = '';
+                
+                if (tmdbImgs.length > 0) {
+                    const firstTmdb = tmdbImgs[0];
+                    const match = firstTmdb.match(/\/t\/p\/[^/]+\/(.+)$/);
+                    if (match) {
+                        const filename = match[1];
+                        poster = `https://image.tmdb.org/t/p/w500/${filename}`;
+                        backdrop = `https://image.tmdb.org/t/p/w1280/${filename}`;
+                    }
+                }
 
                 const genres = [];
                 document.querySelectorAll('a').forEach(el => {
@@ -342,8 +353,9 @@ async function run() {
                 let duration = '1h 45m';
                 document.querySelectorAll('p, span, div').forEach(el => {
                     const text = el.innerText || '';
-                    if (text.includes('m') && (text.includes('h') || text.match(/\b\d+\s*min/))) {
-                        duration = text.trim();
+                    const match = text.match(/\b(\d+h\s*\d*m|\d+\s*min)\b/);
+                    if (match) {
+                        duration = match[1];
                     }
                 });
 
@@ -396,7 +408,7 @@ async function run() {
                 year: metadata.year,
                 duration: metadata.duration,
                 url: publicUrl,
-                created_at: '2026-03-01'
+                created_at: new Date().toISOString()
             }];
 
             const insertSuccess = await insertMovieToSupabase(record);
