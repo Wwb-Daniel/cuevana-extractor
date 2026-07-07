@@ -1,0 +1,51 @@
+name: Descarga Masiva Películas Página 5 (R2 + Supabase)
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/batch_download_page5.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  batch-download-p5:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependencias de Node
+        run: |
+          npm ci || npm install
+
+      - name: Instalar dependencias del sistema (Xvfb, ffmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y xvfb ffmpeg
+
+      - name: Instalar yt-dlp y dependencias de Python
+        run: |
+          python -m pip install --upgrade pip
+          pip install yt-dlp boto3 curl-cffi
+          yt-dlp --version
+
+      - name: Ejecutar Descargador Página 5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          R2_ACCESS_KEY_ID: 'fe39bf665d06666923f48b5763240c4f'
+          R2_SECRET_ACCESS_KEY: '8a1e2ff8f0305ce224ef7e8cbb82f4bda97103ffd6a35d99ec7f2ad8853cf7ba'
+          SUPABASE_PREMIUM_URL: 'https://pdvdnjmqgcprwntabvia.supabase.co'
+          SUPABASE_PREMIUM_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBkdmRuam1xZ2NwcndudGFidmlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI1NTgwNjIsImV4cCI6MjA5ODEzNDA2Mn0.8qcpYfWH9bwDrEQSKzbYvKOqlYpBQmqNWgykTQBXO60'
+        run: |
+          xvfb-run --server-args="-screen 0 1280x1024x24" node batch_downloader_page5.js
