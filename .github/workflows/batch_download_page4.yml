@@ -2,6 +2,11 @@ name: Descarga Masiva Películas Página 4 (R2 + Supabase)
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/batch_download_page4.yml'
 
 permissions:
   contents: write
