@@ -330,12 +330,30 @@ async function scrapeSeriesMetadata(seriesUrl, chromePath) {
                 if (el.href && el.href.includes('genero=')) genres.push(el.innerText.trim());
             });
             
-            let year = new Date().getFullYear();
-            document.querySelectorAll('p, span, div').forEach(el => {
-                const text = el.innerText || '';
-                const match = text.match(/\b(202\d)\b/);
-                if (match) year = parseInt(match[1]);
-            });
+            let year = null;
+            const allElements = Array.from(document.querySelectorAll('*'));
+            const yearBlock = allElements.find(el => el.innerText && el.innerText.includes('Año de estreno'));
+            if (yearBlock) {
+                const nextSibling = yearBlock.nextElementSibling;
+                if (nextSibling) {
+                    const m = nextSibling.innerText.match(/\b(19\d{2}|20\d{2})\b/);
+                    if (m) year = parseInt(m[1]);
+                }
+                if (!year) {
+                    const m = yearBlock.innerText.match(/\b(19\d{2}|20\d{2})\b/);
+                    if (m) year = parseInt(m[1]);
+                }
+            }
+            if (!year) {
+                const titleMatch = document.title.match(/\((19\d{2}|20\d{2})\)/);
+                if (titleMatch) year = parseInt(titleMatch[1]);
+            }
+            if (!year) {
+                const metaText = document.querySelector('.meta, .info, .entry-content')?.innerText || '';
+                const m = metaText.match(/\b(19\d{2}|20\d{2})\b/);
+                if (m) year = parseInt(m[1]);
+            }
+            if (!year) year = new Date().getFullYear();
 
             // Rating: buscar en el DOM (score de TMDB que muestra Cuevana)
             let rating = null;
@@ -427,12 +445,30 @@ async function scrapeMovieMetadata(movieUrl, chromePath) {
                 if (match) duration = match[1];
             });
             
-            let year = new Date().getFullYear();
-            document.querySelectorAll('p, span, div').forEach(el => {
-                const text = el.innerText || '';
-                const match = text.match(/\b(202\d)\b/);
-                if (match) year = parseInt(match[1]);
-            });
+            let year = null;
+            const allElements = Array.from(document.querySelectorAll('*'));
+            const yearBlock = allElements.find(el => el.innerText && el.innerText.includes('Año de estreno'));
+            if (yearBlock) {
+                const nextSibling = yearBlock.nextElementSibling;
+                if (nextSibling) {
+                    const m = nextSibling.innerText.match(/\b(19\d{2}|20\d{2})\b/);
+                    if (m) year = parseInt(m[1]);
+                }
+                if (!year) {
+                    const m = yearBlock.innerText.match(/\b(19\d{2}|20\d{2})\b/);
+                    if (m) year = parseInt(m[1]);
+                }
+            }
+            if (!year) {
+                const titleMatch = document.title.match(/\((19\d{2}|20\d{2})\)/);
+                if (titleMatch) year = parseInt(titleMatch[1]);
+            }
+            if (!year) {
+                const metaText = document.querySelector('.meta, .info, .entry-content')?.innerText || '';
+                const m = metaText.match(/\b(19\d{2}|20\d{2})\b/);
+                if (m) year = parseInt(m[1]);
+            }
+            if (!year) year = new Date().getFullYear();
 
             // Rating: buscar en el DOM
             let rating = null;
