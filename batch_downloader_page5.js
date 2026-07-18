@@ -314,10 +314,10 @@ async function startBatch() {
     const chromePath = getChromePath();
     console.log(`📍 Iniciando Batch Scraper 2026 - PÁGINA 5. Chrome: ${chromePath}`);
     
-    console.log("🔍 Escaneando página 5 de cuevana3i.you...");
+    console.log("🔍 Escaneando página 5 de cuevana3i.sbs...");
     let pageHtml;
     try {
-        pageHtml = await fetchHtml('https://cuevana3i.you/peliculas?page=5');
+        pageHtml = await fetchHtml('https://cuevana3i.sbs/peliculas?page=5');
     } catch (e) {
         console.error("Error al descargar página 5:", e.message);
         process.exit(1);
@@ -332,7 +332,7 @@ async function startBatch() {
         const title = match[2].trim();
         
         if (!url.startsWith('http')) {
-            url = 'https://cuevana3i.you' + url;
+            url = 'https://cuevana3i.sbs' + url;
         }
         
         if (!candidates.some(c => c.url === url)) {
@@ -419,8 +419,8 @@ async function startBatch() {
                             id: slug,
                             title: metadata.title,
                             url: publicUrl,
-                            poster: metadata.poster || 'https://cuevana3i.you/cuevana3.png',
-                            backdrop: metadata.backdrop || metadata.poster || 'https://cuevana3i.you/cuevana3.png',
+                            poster: metadata.poster || 'https://cuevana3i.sbs/cuevana3.png',
+                            backdrop: metadata.backdrop || metadata.poster || 'https://cuevana3i.sbs/cuevana3.png',
                             year: metadata.year || 2026,
                             duration: metadata.duration,
                             genres: metadata.genres,

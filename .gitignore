@@ -14,3 +14,8 @@ anime/node_modules/
 anime/.env
 anime/animes.json
 animes.json
+chrome_profile/
+chrome_session/
+remote-profile/
+launch_chrome.bat
+

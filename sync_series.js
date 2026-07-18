@@ -69,11 +69,20 @@ function getChromePath() {
     return null;
 }
 
-function fetchHtml(url) {
+function fetchHtml(url, maxRedirects = 5) {
     return new Promise((resolve, reject) => {
+        if (maxRedirects <= 0) return reject(new Error('Demasiados redireccionamientos'));
         https.get(url, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
         }, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                let redirectUrl = res.headers.location;
+                if (!redirectUrl.startsWith('http')) {
+                    const parsed = new URL(url);
+                    redirectUrl = `${parsed.protocol}//${parsed.host}${redirectUrl}`;
+                }
+                return fetchHtml(redirectUrl, maxRedirects - 1).then(resolve).catch(reject);
+            }
             let data = '';
             res.on('data', (chunk) => data += chunk);
             res.on('end', () => resolve(data));
@@ -102,14 +111,14 @@ async function getSeriesEpisodes(seriesUrl, seriesSlug, chromePath) {
         
         for (const seasonLink of seasonLinks) {
             let sLink = seasonLink;
-            if (!sLink.startsWith('http')) sLink = 'https://cuevana3i.you' + sLink;
+            if (!sLink.startsWith('http')) sLink = 'https://cuevana3i.sbs' + sLink;
             
             const seasonHtml = await fetchHtml(sLink);
             const episodeLinks = sortedUnique(reFindAll(seasonHtml, /href=["']?([^"'\s>]*(?:episodio-\d+x\d+))["']?/g));
             
             for (const epLink of episodeLinks) {
                 let eLink = epLink;
-                if (!eLink.startsWith('http')) eLink = 'https://cuevana3i.you' + eLink;
+                if (!eLink.startsWith('http')) eLink = 'https://cuevana3i.sbs' + eLink;
                 
                 const epCode = eLink.split('episodio-')[1]; // ej. 1x1
                 const parts = epCode.split('x');
@@ -362,7 +371,7 @@ async function syncSeries() {
 
     let html;
     try {
-        html = await fetchHtml('https://cuevana3i.you/series');
+        html = await fetchHtml('https://cuevana3i.sbs/series');
     } catch (e) {
         console.error('Error al obtener catálogo de series:', e.message);
         return;
@@ -375,7 +384,7 @@ async function syncSeries() {
     while ((match = regexSeries.exec(html)) !== null) {
         let url = match[1];
         const slug = match[2];
-        if (!url.startsWith('http')) url = 'https://cuevana3i.you' + url;
+        if (!url.startsWith('http')) url = 'https://cuevana3i.sbs' + url;
         if (!seriesList.some(s => s.slug === slug)) {
             seriesList.push({ url, slug });
         }
@@ -426,15 +435,15 @@ async function syncSeries() {
         if (!seriesCheck.data || seriesCheck.data.length === 0) {
             isNewSeries = true;
             console.log(`🆕 Creando entrada de serie: '${candidate.seriesSlug}'...`);
-            const seriesUrl = `https://cuevana3i.you/serie/${candidate.seriesSlug}`;
+            const seriesUrl = `https://cuevana3i.sbs/serie/${candidate.seriesSlug}`;
             const sMeta = await scrapeSeriesMetadata(seriesUrl, chromePath);
 
             if (sMeta && sMeta.title) {
                 const seriesRecord = {
                     id: candidate.seriesSlug,
                     title: sMeta.title,
-                    poster: sMeta.poster || 'https://cuevana3i.you/cuevana3.png',
-                    backdrop: sMeta.backdrop || sMeta.poster || 'https://cuevana3i.you/cuevana3.png',
+                    poster: sMeta.poster || 'https://cuevana3i.sbs/cuevana3.png',
+                    backdrop: sMeta.backdrop || sMeta.poster || 'https://cuevana3i.sbs/cuevana3.png',
                     year: sMeta.year || new Date().getFullYear(),
                     description: sMeta.description || '',
                     genres: sMeta.genres || [],
@@ -448,8 +457,8 @@ async function syncSeries() {
                 const seriesRecord = {
                     id: candidate.seriesSlug,
                     title: candidate.seriesSlug.replace(/-/g, ' '),
-                    poster: 'https://cuevana3i.you/cuevana3.png',
-                    backdrop: 'https://cuevana3i.you/cuevana3.png',
+                    poster: 'https://cuevana3i.sbs/cuevana3.png',
+                    backdrop: 'https://cuevana3i.sbs/cuevana3.png',
                     year: new Date().getFullYear(),
                     description: '',
                     genres: [],
@@ -463,7 +472,7 @@ async function syncSeries() {
             try {
                 const ghToken = process.env.GITHUB_TOKEN;
                 if (ghToken) {
-                    const targetUrl = `https://cuevana3i.you/serie/${candidate.seriesSlug}`;
+                    const targetUrl = `https://cuevana3i.sbs/serie/${candidate.seriesSlug}`;
                     const cmd = `gh workflow run download_series.yml -f series_url="${targetUrl}" -f seasons="all" -f episodes="all"`;
                     execSync(cmd, { env: { ...process.env, GH_TOKEN: ghToken }, stdio: 'inherit' });
                     console.log(`🚀 Workflow de descarga completa disparado para '${candidate.seriesSlug}'.`);

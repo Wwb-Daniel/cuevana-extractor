@@ -199,6 +199,7 @@ async function run() {
             headless: false,
             ignoreDefaultArgs: ['--enable-automation'],
             args: [
+                '--remote-debugging-port=9222',
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-web-security',

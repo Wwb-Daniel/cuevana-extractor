@@ -69,11 +69,20 @@ function getChromePath() {
     return null;
 }
 
-function fetchHtml(url) {
+function fetchHtml(url, maxRedirects = 5) {
     return new Promise((resolve, reject) => {
+        if (maxRedirects <= 0) return reject(new Error('Demasiados redireccionamientos'));
         https.get(url, {
             headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
         }, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                let redirectUrl = res.headers.location;
+                if (!redirectUrl.startsWith('http')) {
+                    const parsed = new URL(url);
+                    redirectUrl = `${parsed.protocol}//${parsed.host}${redirectUrl}`;
+                }
+                return fetchHtml(redirectUrl, maxRedirects - 1).then(resolve).catch(reject);
+            }
             let data = '';
             res.on('data', (chunk) => data += chunk);
             res.on('end', () => resolve(data));
@@ -326,7 +335,7 @@ async function syncMovies() {
 
     let html;
     try {
-        html = await fetchHtml('https://cuevana3i.you/peliculas');
+        html = await fetchHtml('https://cuevana3i.sbs/peliculas');
     } catch (e) {
         console.error('Error al obtener catálogo de películas:', e.message);
         return;
@@ -338,7 +347,7 @@ async function syncMovies() {
     while ((match = regexLink.exec(html)) !== null) {
         let url = match[1];
         const title = match[2].trim();
-        if (!url.startsWith('http')) url = 'https://cuevana3i.you' + url;
+        if (!url.startsWith('http')) url = 'https://cuevana3i.sbs' + url;
         if (!candidates.some(c => c.url === url)) candidates.push({ url, title });
     }
     console.log(`Encontradas ${candidates.length} películas en portada.`);
@@ -418,8 +427,8 @@ async function syncMovies() {
                             id: slug,
                             title: metadata.title,
                             url: `${R2_PUBLIC_URL}/${filename}`,
-                            poster: metadata.poster || 'https://cuevana3i.you/cuevana3.png',
-                            backdrop: metadata.backdrop || metadata.poster || 'https://cuevana3i.you/cuevana3.png',
+                            poster: metadata.poster || 'https://cuevana3i.sbs/cuevana3.png',
+                            backdrop: metadata.backdrop || metadata.poster || 'https://cuevana3i.sbs/cuevana3.png',
                             year: metadata.year || new Date().getFullYear(),
                             duration: metadata.duration || '',
                             genres: metadata.genres || [],
