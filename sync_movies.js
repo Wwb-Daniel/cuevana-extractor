@@ -387,8 +387,8 @@ async function syncMovies() {
     let failed = 0;
 
     for (const candidate of candidates) {
-        if (added >= 3) {
-            console.log("⚠️ Se alcanzó el límite de 3 películas agregadas por ejecución. Terminando...");
+        if (added >= 5) {
+            console.log("⚠️ Se alcanzó el límite de 5 películas agregadas por ejecución. Terminando...");
             break;
         }
         const slug = generateSlug(candidate.title || candidate.url.split('/').pop());
