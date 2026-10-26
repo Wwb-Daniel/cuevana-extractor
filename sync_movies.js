@@ -178,11 +178,13 @@ async function extractM3u8(playerUrl, chromePath) {
         const u = req.url();
         if (seen.has(u)) return;
         // Solo playlists HLS o MP4 reales (ignorar segmentos .ts/.m4s y anuncios)
-        if (/\.m3u8(\?|$)/i.test(u) || /\.mp4(\?|$)/i.test(u)) {
+        let pathname = '';
+        try { pathname = new URL(u).pathname; } catch (_) { return; }
+        if (/\.m3u8$/i.test(pathname) || /\.mp4$/i.test(pathname)) {
             seen.add(u);
             // Guardar el Referer real (el del iframe del reproductor), el CDN lo exige
             const referer = req.headers()['referer'] || (req.frame() && req.frame().url()) || playerUrl;
-            streams.push({ url: u, referer, isMaster: /master/i.test(u) });
+            streams.push({ url: u, referer, isMaster: /master/i.test(pathname) });
             console.log(`✨ Stream capturado: ${u}`);
         }
     });
