@@ -55,6 +55,12 @@ function fetchHtml(url) {
 function decryptToken(tokenString) {
     try {
         // Método 1: XOR
+        // Los servidores con token (Hyper/Nebula) rotan de dominio constantemente
+        // (tiktokshopping.xyz / martinshop.xyz ya no existen). Se usa el wrapper
+        // oficial de Cuevana, que siempre embebe el dominio vigente en un iframe.
+        if (tokenString.includes('token=') && tokenString.startsWith('http')) {
+            return tokenString;
+        }
         if (tokenString.includes('token=')) {
             const token = tokenString.split('token=')[1].split('&')[0];
             const serverIndex = token[0];
@@ -78,6 +84,9 @@ function decryptToken(tokenString) {
         return null;
     }
 }
+
+// Referer real con el que el reproductor pidió cada stream
+const STREAM_REFERERS = new Map();
 
 async function extractM3u8(playerUrl) {
     console.log(`\n[Puppeteer] Abriendo el reproductor: ${playerUrl}...`);
@@ -110,12 +119,23 @@ async function extractM3u8(playerUrl) {
     }
 
     const page = await browser.newPage();
+    // Cerrar popups de publicidad (sin tocar la página principal)
+    browser.on('targetcreated', async (target) => {
+        if (target.type() !== 'page') return;
+        try { const p = await target.page(); if (p && p !== page) await p.close(); } catch (_) {}
+    });
     const streams = [];
 
     // Capturar streams
     page.on('request', request => {
         const url = request.url();
-        if (url.includes('.m3u8') || url.includes('.mp4') || url.includes('.m4s') || url.includes('playlist') || url.includes('master')) {
+        // Solo playlists HLS o MP4 reales: se evalúa el pathname (no el query string,
+        // p.ej. ping.gif de JWPlayer lleva '.mp4' en sus parámetros)
+        let __pathname = '';
+        try { __pathname = new URL(url).pathname; } catch (_) { return; }
+        if (/\.m3u8$/i.test(__pathname) || /\.mp4$/i.test(__pathname)) {
+            // Guardar el Referer real (el del iframe del reproductor), el CDN lo exige
+            STREAM_REFERERS.set(url, request.headers()['referer'] || (request.frame() && request.frame().url()) || '');
             if (!streams.includes(url)) {
                 streams.push(url);
                 console.log(`✨ [Capturado] URL de Stream encontrada: ${url}`);
@@ -180,7 +200,7 @@ function downloadWithYtdl(stream, playerUrl, filename) {
             filename += '.mp4';
         }
         
-        const referer = playerUrl.split('/e/')[0] + '/';
+        const referer = (typeof STREAM_REFERERS !== 'undefined' && STREAM_REFERERS.get(stream)) ? new URL(STREAM_REFERERS.get(stream)).origin + '/' : playerUrl.split('/e/')[0] + '/';
         const tempTs = 'temp_download.ts';
         console.log(`\n📥 Iniciando descarga automática con yt-dlp...`);
         console.log(`Destino temporal TS: ${tempTs}`);
@@ -313,4 +333,7 @@ async function main() {
     }
 }
 
-main();
+// Salir explícitamente: handles abiertos (Chrome/sockets keep-alive) impedían que el proceso terminara
+main()
+    .then(() => process.exit(0))
+    .catch((err) => { console.error(err); process.exit(1); });
