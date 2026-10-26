@@ -92,6 +92,12 @@ function fetchHtml(url, maxRedirects = 5) {
 
 function decryptToken(tokenString) {
     try {
+        // Los servidores con token (Hyper/Nebula) rotan de dominio constantemente
+        // (tiktokshopping.xyz / martinshop.xyz ya no existen). Se usa el wrapper
+        // oficial de Cuevana, que siempre embebe el dominio vigente en un iframe.
+        if (tokenString.includes('token=') && tokenString.startsWith('http')) {
+            return tokenString;
+        }
         if (tokenString.includes('token=')) {
             const token = tokenString.split('token=')[1].split('&')[0];
             const serverIndex = token[0];
@@ -160,29 +166,51 @@ async function extractM3u8(playerUrl, chromePath) {
         return [];
     }
     const page = await browser.newPage();
+    // Cerrar popups de publicidad (sin tocar la página principal)
+    browser.on('targetcreated', async (target) => {
+        if (target.type() !== 'page') return;
+        try { const p = await target.page(); if (p && p !== page) await p.close(); } catch (_) {}
+    });
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     const streams = [];
+    const seen = new Set();
     page.on('request', req => {
         const u = req.url();
-        if (u.includes('.m3u8') || u.includes('.mp4') || u.includes('.m4s') || u.includes('playlist') || u.includes('master')) {
-            if (!streams.includes(u)) { streams.push(u); console.log(`✨ Stream capturado: ${u}`); }
+        if (seen.has(u)) return;
+        // Solo playlists HLS o MP4 reales (ignorar segmentos .ts/.m4s y anuncios)
+        if (/\.m3u8(\?|$)/i.test(u) || /\.mp4(\?|$)/i.test(u)) {
+            seen.add(u);
+            // Guardar el Referer real (el del iframe del reproductor), el CDN lo exige
+            const referer = req.headers()['referer'] || (req.frame() && req.frame().url()) || playerUrl;
+            streams.push({ url: u, referer, isMaster: /master/i.test(u) });
+            console.log(`✨ Stream capturado: ${u}`);
         }
     });
     try {
-        await page.goto(playerUrl, { waitUntil: 'networkidle2', timeout: 20000 });
-        await new Promise(r => setTimeout(r, 8000));
-        await page.evaluate(() => { const el = document.querySelector('video') || document.body; if (el) el.click(); });
-        await new Promise(r => setTimeout(r, 5000));
+        // 'networkidle2' nunca se alcanza en páginas con anuncios -> timeout. Usar domcontentloaded.
+        await page.goto(playerUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
+        for (let i = 0; i < 6 && !streams.length; i++) {
+            await new Promise(r => setTimeout(r, 3000));
+            try { await page.mouse.click(640, 360); } catch (_) {}
+        }
+        if (streams.length) await new Promise(r => setTimeout(r, 2000));
     } catch (e) {
-        console.log('[Puppeteer] Timeout:', e.message);
+        console.log('[Puppeteer] Error:', e.message);
     } finally {
         await browser.close();
     }
+    // Priorizar master.m3u8, luego otros m3u8, luego mp4
+    streams.sort((a, b) => (b.isMaster - a.isMaster) || (/\.m3u8/i.test(b.url) - /\.m3u8/i.test(a.url)));
     return streams;
 }
 
 function downloadAndRemux(stream, playerUrl, filename) {
     return new Promise((resolve) => {
-        const referer = new URL(playerUrl).origin + '/';
+        let referer = new URL(playerUrl).origin + '/';
+        if (stream && typeof stream === 'object') {
+            try { referer = new URL(stream.referer).origin + '/'; } catch (_) {}
+            stream = stream.url;
+        }
         const tempTs = `temp_${Date.now()}.ts`;
         console.log(`\n📥 Descargando HLS: ${tempTs}...`);
         const child = spawn('yt-dlp', ['--no-update', '--referer', referer, '--extractor-args', 'generic:impersonate', '-o', tempTs, stream], { stdio: 'inherit' });
