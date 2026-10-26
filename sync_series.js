@@ -307,7 +307,8 @@ async function scrapeSeriesMetadata(seriesUrl, chromePath) {
         await page.goto(seriesUrl, { waitUntil: 'networkidle2', timeout: 30000 });
 
         const metadata = await page.evaluate(() => {
-            const title = document.querySelector('h1')?.innerText?.trim() || '';
+            // El h1 incluye el rating al final (p.ej. 'Titulo 7.4'): quitarlo
+            const title = (document.querySelector('h1')?.innerText?.trim() || '').replace(/\s+\d{1,2}\.\d\s*$/, '').trim();
 
             // Sinopsis
             let description = '';
@@ -597,4 +598,7 @@ async function syncSeries() {
     console.log('============================================');
 }
 
-syncSeries().catch(console.error);
+// Salir explícitamente: handles abiertos (Chrome/sockets keep-alive) impedían que el proceso terminara
+syncSeries()
+    .then(() => process.exit(0))
+    .catch((err) => { console.error(err); process.exit(1); });
