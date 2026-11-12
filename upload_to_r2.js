@@ -60,6 +60,7 @@ async function uploadToR2(filePath, bucketName = 'movie') {
         Bucket: bucketName,
         Key: fileName,
         Body: fileStream,
+        ContentLength: stats.size,
         ContentType: contentType
     });
 
@@ -68,16 +69,23 @@ async function uploadToR2(filePath, bucketName = 'movie') {
     return `https://pub-77522f1e717f46bead2250b84f1ca547.r2.dev/${fileName}`;
 }
 
-async function test() {
-    fs.writeFileSync('test_r2_upload.txt', 'test content');
-    try {
-        const url = await uploadToR2('test_r2_upload.txt', 'movie');
-        console.log('SUCCESS URL:', url);
-    } catch (e) {
-        console.error('FAILED:', e);
-    } finally {
-        if (fs.existsSync('test_r2_upload.txt')) fs.unlinkSync('test_r2_upload.txt');
-    }
-}
+module.exports = {
+    uploadToR2,
+    getServerTimeSkew
+};
 
-test();
+if (require.main === module) {
+    async function test() {
+        fs.writeFileSync('test_r2_upload.txt', 'test content');
+        try {
+            const url = await uploadToR2('test_r2_upload.txt', 'movie');
+            console.log('SUCCESS URL:', url);
+        } catch (e) {
+            console.error('FAILED:', e);
+        } finally {
+            if (fs.existsSync('test_r2_upload.txt')) fs.unlinkSync('test_r2_upload.txt');
+        }
+    }
+
+    test();
+}
