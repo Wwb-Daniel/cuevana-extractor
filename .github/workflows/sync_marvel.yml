@@ -1,0 +1,59 @@
+name: Sincronizar Universo Marvel a CinemaDB
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Categoría o Slug a sincronizar (all, mcu, phase1, phase2, phase3, phase4, phase5, spiderman, xmen, venom, deadpool, series, o slug específico como iron-man, loki)'
+        required: false
+        default: 'all'
+      max_items:
+        description: 'Máximo de películas/series a procesar por shard (default: 999)'
+        required: false
+        default: '999'
+
+permissions:
+  contents: write
+
+jobs:
+  sync-marvel:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2, 3]
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependencias de Node
+        run: npm ci || npm install
+
+      - name: Instalar herramientas multimedia (ffmpeg, yt-dlp, xvfb)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg xvfb
+          sudo wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+          yt-dlp --version
+          ffmpeg -version | head -n 1
+
+      - name: Ejecutar Sincronización Marvel (Shard ${{ matrix.shard }}/4)
+        env:
+          R2_ACCESS_KEY_ID: 'fe39bf665d06666923f48b5763240c4f'
+          R2_SECRET_ACCESS_KEY: '8a1e2ff8f0305ce224ef7e8cbb82f4bda97103ffd6a35d99ec7f2ad8853cf7ba'
+          SUPABASE_PREMIUM_URL: ${{ secrets.SUPABASE_PREMIUM_URL }}
+          SUPABASE_PREMIUM_ANON_KEY: ${{ secrets.SUPABASE_PREMIUM_ANON_KEY }}
+        run: |
+          xvfb-run --auto-servernum --server-args="-screen 0 1280x1024x24" node sync_marvel.js \
+            --target "${{ github.event.inputs.target }}" \
+            --shard ${{ matrix.shard }} \
+            --total-shards 4 \
+            --max-items "${{ github.event.inputs.max_items }}"
