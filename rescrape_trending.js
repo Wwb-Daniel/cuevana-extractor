@@ -425,18 +425,37 @@ async function main() {
     const chromePath = getChromePath();
     console.log(`Chrome detectado: ${chromePath || 'auto'}`);
 
-    let query = `premium_movies?select=*&order=vistas.desc&limit=${limit}`;
+    let candidateMovies = [];
     if (targetSlug && targetSlug !== 'all') {
-        query = `premium_movies?select=*&id=eq.${encodeURIComponent(targetSlug)}`;
+        const res = await makeSupabaseRequest(`premium_movies?select=*&id=eq.${encodeURIComponent(targetSlug)}`, 'GET');
+        if (res.status === 200 && Array.isArray(res.data)) {
+            candidateMovies = res.data;
+        }
+    } else {
+        console.log(`🔍 Obteniendo películas destacadas (is_featured=true) y top ${limit} en tendencias...`);
+        const [featuredRes, trendingRes] = await Promise.all([
+            makeSupabaseRequest('premium_movies?select=*&is_featured=eq.true', 'GET'),
+            makeSupabaseRequest(`premium_movies?select=*&order=vistas.desc&limit=${limit}`, 'GET')
+        ]);
+
+        const movieMap = new Map();
+        if (featuredRes.status === 200 && Array.isArray(featuredRes.data)) {
+            featuredRes.data.forEach(m => movieMap.set(m.id, m));
+        }
+        if (trendingRes.status === 200 && Array.isArray(trendingRes.data)) {
+            trendingRes.data.forEach(m => {
+                if (!movieMap.has(m.id)) movieMap.set(m.id, m);
+            });
+        }
+        candidateMovies = Array.from(movieMap.values());
     }
 
-    const res = await makeSupabaseRequest(query, 'GET');
-    if (res.status !== 200 || !Array.isArray(res.data) || res.data.length === 0) {
-        throw new Error(`No se pudieron obtener las películas en tendencia de Supabase (status ${res.status})`);
+    if (candidateMovies.length === 0) {
+        throw new Error(`No se pudieron obtener películas destacadas o en tendencia de Supabase`);
     }
 
     // Filtrar solo películas con URL válida igual que hace /api/movies
-    const allTrending = res.data.filter(m => {
+    const allTrending = candidateMovies.filter(m => {
         const u = String(m.url || m.iframe_url || '').trim();
         return u.startsWith('http://') || u.startsWith('https://');
     });

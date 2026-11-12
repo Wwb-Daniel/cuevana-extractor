@@ -1,14 +1,17 @@
-name: Re-Scrapear Películas en Tendencias (Video Nítido HD)
+name: Re-Scrapear Películas Destacadas y en Tendencias (Video Nítido HD)
 
 on:
+  schedule:
+    # Se ejecuta automáticamente cada 2 meses (el día 1 a las 04:00 UTC)
+    - cron: '0 4 1 */2 *'
   workflow_dispatch:
     inputs:
       limit:
-        description: 'Cantidad de películas en Tendencias Ahora a actualizar (default: 15)'
+        description: 'Cantidad de películas en Tendencias Ahora a actualizar además de las destacadas (default: 20)'
         required: false
-        default: '15'
+        default: '20'
       slug:
-        description: 'ID de una película específica o "all" para todas las de Tendencias'
+        description: 'ID de una película específica o "all" para todas las destacadas y de tendencias'
         required: false
         default: 'all'
 
@@ -44,14 +47,14 @@ jobs:
           sudo chmod a+rx /usr/local/bin/yt-dlp
           yt-dlp --version
 
-      - name: Re-Scrapear Películas en Tendencias (Shard ${{ matrix.shard }})
+      - name: Re-Scrapear Películas Destacadas y en Tendencias (Shard ${{ matrix.shard }})
         env:
           R2_ACCESS_KEY_ID: 'fe39bf665d06666923f48b5763240c4f'
           R2_SECRET_ACCESS_KEY: '8a1e2ff8f0305ce224ef7e8cbb82f4bda97103ffd6a35d99ec7f2ad8853cf7ba'
           SUPABASE_PREMIUM_URL: ${{ secrets.SUPABASE_PREMIUM_URL }}
           SUPABASE_PREMIUM_ANON_KEY: ${{ secrets.SUPABASE_PREMIUM_ANON_KEY }}
         run: |
-          LIMIT="${{ github.event.inputs.limit || '15' }}"
+          LIMIT="${{ github.event.inputs.limit || '20' }}"
           SLUG="${{ github.event.inputs.slug || 'all' }}"
           if [ "$SLUG" != "all" ]; then
             if [ "${{ matrix.shard }}" = "0" ]; then
