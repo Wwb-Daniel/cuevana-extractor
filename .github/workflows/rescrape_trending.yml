@@ -1,0 +1,64 @@
+name: Re-Scrapear Películas en Tendencias (Video Nítido HD)
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Cantidad de películas en Tendencias Ahora a actualizar (default: 15)'
+        required: false
+        default: '15'
+      slug:
+        description: 'ID de una película específica o "all" para todas las de Tendencias'
+        required: false
+        default: 'all'
+
+permissions:
+  contents: write
+
+jobs:
+  rescrape-trending:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1, 2]
+
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar dependencias de Node
+        run: npm ci || npm install
+
+      - name: Instalar herramientas multimedia (ffmpeg, yt-dlp)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg
+          sudo wget https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -O /usr/local/bin/yt-dlp
+          sudo chmod a+rx /usr/local/bin/yt-dlp
+          yt-dlp --version
+
+      - name: Re-Scrapear Películas en Tendencias (Shard ${{ matrix.shard }})
+        env:
+          R2_ACCESS_KEY_ID: 'fe39bf665d06666923f48b5763240c4f'
+          R2_SECRET_ACCESS_KEY: '8a1e2ff8f0305ce224ef7e8cbb82f4bda97103ffd6a35d99ec7f2ad8853cf7ba'
+          SUPABASE_PREMIUM_URL: ${{ secrets.SUPABASE_PREMIUM_URL }}
+          SUPABASE_PREMIUM_ANON_KEY: ${{ secrets.SUPABASE_PREMIUM_ANON_KEY }}
+        run: |
+          LIMIT="${{ github.event.inputs.limit || '15' }}"
+          SLUG="${{ github.event.inputs.slug || 'all' }}"
+          if [ "$SLUG" != "all" ]; then
+            if [ "${{ matrix.shard }}" = "0" ]; then
+              node rescrape_trending.js --slug "$SLUG" --shard 0 --total-shards 1
+            else
+              echo "Modo película individual ($SLUG): saltando shard ${{ matrix.shard }}"
+            fi
+          else
+            node rescrape_trending.js --limit "$LIMIT" --shard "${{ matrix.shard }}" --total-shards 3
+          fi
