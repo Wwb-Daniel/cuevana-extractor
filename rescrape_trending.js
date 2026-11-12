@@ -299,11 +299,34 @@ function downloadStream(streamUrl, referer, outputPath) {
     });
 }
 
-function remuxFaststart(inputFile, outputFile) {
+function remuxFaststart(inputTs, outputMp4) {
     try {
-        console.log(`⚡ Optimizando video con faststart (ffmpeg)...`);
-        execSync(`ffmpeg -y -i "${inputFile}" -c copy -movflags +faststart "${outputFile}"`, { stdio: 'inherit' });
-        return fs.existsSync(outputFile);
+        let isFakePng = false;
+        try {
+            const fd = fs.openSync(inputTs, 'r');
+            const header = Buffer.alloc(4);
+            fs.readSync(fd, header, 0, 4, 0);
+            fs.closeSync(fd);
+            isFakePng = (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47);
+        } catch (_) {}
+        console.log(`⚡ Remuxeando TS -> MP4 con faststart (fakePNG=${isFakePng})...`);
+        const cmd = isFakePng
+            ? `ffmpeg -y -f mpegts -i "${inputTs}" -c copy -movflags +faststart "${outputMp4}"`
+            : `ffmpeg -y -i "${inputTs}" -c copy -movflags +faststart "${outputMp4}"`;
+        execSync(cmd, { stdio: 'inherit' });
+        if (!fs.existsSync(outputMp4)) return false;
+
+        // Validar que el MP4 resultante tenga códec de video real (avc1/hvc1) y no mp4v (PNG falso)
+        const fdOut = fs.openSync(outputMp4, 'r');
+        const probe = Buffer.alloc(65536);
+        const bytesRead = fs.readSync(fdOut, probe, 0, probe.length, 0);
+        fs.closeSync(fdOut);
+        const probeStr = probe.subarray(0, bytesRead).toString('latin1');
+        if (probeStr.includes('mp4v') && !probeStr.includes('avc1')) {
+            console.error('❌ El MP4 resultante contiene códec mp4v (PNG falso sin demuxear). Abortando subida.');
+            return false;
+        }
+        return true;
     } catch (e) {
         console.warn('Advertencia en remux faststart:', e.message);
         return false;
@@ -326,7 +349,7 @@ async function rescrapeMovie(movie, chromePath) {
     const streamInfo = await extractStream(resolved.url, resolved.html, chromePath);
 
     const safeFileBase = toSlug(movie.id).replace(/[^a-z0-9-]/g, '-');
-    const rawFileName = `temp_${safeFileBase}.mp4`;
+    const rawFileName = `temp_${safeFileBase}.ts`;
     const finalFileName = `${safeFileBase}_hd.mp4`;
 
     try {
@@ -340,8 +363,12 @@ async function rescrapeMovie(movie, chromePath) {
     }
 
     const remuxed = remuxFaststart(rawFileName, finalFileName);
-    if (!remuxed && fs.existsSync(rawFileName)) {
-        fs.copyFileSync(rawFileName, finalFileName);
+    if (!remuxed) {
+        try {
+            if (fs.existsSync(rawFileName)) fs.unlinkSync(rawFileName);
+            if (fs.existsSync(finalFileName)) fs.unlinkSync(finalFileName);
+        } catch (_) {}
+        throw new Error(`Falló el remux MPEG-TS -> MP4 (H.264) para ${cleanTitle}`);
     }
 
     console.log(`📤 Subiendo versión nítida a Cloudflare R2 (${finalFileName})...`);

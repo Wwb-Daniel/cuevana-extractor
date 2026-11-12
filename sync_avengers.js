@@ -268,15 +268,40 @@ function downloadStream(streamUrl, referer, outputPath) {
     });
 }
 
-function remuxFaststart(inputFile, outputFile) {
+function remuxFaststart(inputTs, outputMp4) {
     try {
-        console.log(`⚡ Optimizando video con faststart (ffmpeg)...`);
-        execSync(`ffmpeg -y -i "${inputFile}" -c copy -movflags +faststart "${outputFile}"`, { stdio: 'inherit' });
-        return fs.existsSync(outputFile);
+        let isFakePng = false;
+        try {
+            const fd = fs.openSync(inputTs, 'r');
+            const header = Buffer.alloc(4);
+            fs.readSync(fd, header, 0, 4, 0);
+            fs.closeSync(fd);
+            isFakePng = (header[0] === 0x89 && header[1] === 0x50 && header[2] === 0x4E && header[3] === 0x47);
+        } catch (_) {}
+        console.log(`⚡ Remuxeando TS -> MP4 con faststart (fakePNG=${isFakePng})...`);
+        const cmd = isFakePng
+            ? `ffmpeg -y -f mpegts -i "${inputTs}" -c copy -movflags +faststart "${outputMp4}"`
+            : `ffmpeg -y -i "${inputTs}" -c copy -movflags +faststart "${outputMp4}"`;
+        execSync(cmd, { stdio: 'inherit' });
+        return fs.existsSync(outputMp4);
     } catch (e) {
         console.warn('Advertencia en remux faststart:', e.message);
         return false;
     }
+}
+
+async function isR2FileHealthyAvc1(url) {
+    return new Promise((resolve) => {
+        if (!url || !url.startsWith('https://')) return resolve(false);
+        https.get(url, { headers: { Range: 'bytes=0-32767' } }, (res) => {
+            const chunks = [];
+            res.on('data', c => chunks.push(c));
+            res.on('end', () => {
+                const str = Buffer.concat(chunks).toString('latin1');
+                resolve(str.includes('avc1') && !str.includes('mp4v'));
+            });
+        }).on('error', () => resolve(false));
+    });
 }
 
 async function processMovie(movieConfig, chromePath) {
@@ -284,11 +309,16 @@ async function processMovie(movieConfig, chromePath) {
     console.log(`🎬 PROCESANDO: ${movieConfig.canonicalTitle} (${movieConfig.year})`);
     console.log('======================================================');
 
-    // 1. Verificar si ya existe en Supabase
+    // 1. Verificar si ya existe en Supabase y si su archivo en R2 tiene códec avc1 válido
     const check = await makeSupabaseRequest(`premium_movies?id=eq.${movieConfig.slug}`, 'GET');
     if (check.data && check.data.length > 0) {
-        console.log(`⏭️ '${movieConfig.canonicalTitle}' ya existe en CinemaDB. Saltando.`);
-        return { success: true, skipped: true };
+        const existingUrl = check.data[0].url;
+        const healthy = await isR2FileHealthyAvc1(existingUrl);
+        if (healthy) {
+            console.log(`⏭️ '${movieConfig.canonicalTitle}' ya existe en CinemaDB con códec avc1 válido. Saltando.`);
+            return { success: true, skipped: true };
+        }
+        console.log(`🔄 '${movieConfig.canonicalTitle}' existe pero requiere re-muxeo H.264 (avc1). Re-procesando...`);
     }
 
     // 2. Extraer metadatos
@@ -303,8 +333,8 @@ async function processMovie(movieConfig, chromePath) {
     // 3. Extraer flujo en vivo
     const streamInfo = await extractStream(movieConfig.cuevanaUrl, chromePath);
 
-    // 4. Descarga local temporal
-    const rawFileName = `temp_${movieConfig.slug}.mp4`;
+    // 4. Descarga local temporal en formato .ts (evita que yt-dlp corrompa streams con cabecera PNG falsa)
+    const rawFileName = `temp_${movieConfig.slug}.ts`;
     const finalFileName = `${movieConfig.slug}.mp4`;
 
     const downloaded = await downloadStream(streamInfo.masterUrl, streamInfo.referer, rawFileName);
@@ -312,9 +342,12 @@ async function processMovie(movieConfig, chromePath) {
         throw new Error(`Falló la descarga del flujo para ${movieConfig.canonicalTitle}`);
     }
 
-    // 5. Remux Faststart
+    // 5. Remux Faststart con soporte -f mpegts
     const remuxed = remuxFaststart(rawFileName, finalFileName);
-    const fileToUpload = remuxed ? finalFileName : rawFileName;
+    if (!remuxed) {
+        throw new Error(`Falló el remux MPEG-TS -> MP4 para ${movieConfig.canonicalTitle}`);
+    }
+    const fileToUpload = finalFileName;
 
     // 6. Subir a Cloudflare R2
     console.log(`📤 Subiendo a Cloudflare R2...`);
